@@ -37,6 +37,8 @@ Kaynak: https://www.sogo.nu/support/faq/how-to-change-the-color-theme.html
 4. Prod'a uygulama + `sogo` restart (yalnız onayla).
 5. Doğrulama: iki SOGo'lu domain'de gözle + `curl` ile tema/logo/başlık kontrolü. "Yapıldı" doğrulanmadan denmez.
 
+**Bilinen sınır — URL öneki:** `/SOGo/so/...` yolu uygulamaya gömülüdür (SOPE uygulama adı); `webmail.domain.com/resco/mail` gibi yeniden adlandırmanın resmî desteği YOK (bilinen SOGo sınırı). Proxy/gövde-yeniden-yazma (mod_substitute) hileleri SOGo'nun JS'te ürettiği URL'lerle kırılır ve her güncellemede bozulma riski taşır → önerimiz kozmetik bu iş için risk alınMAması; kullanıcıya verilen adres daima `webmail.domain.com` (kök zaten SOGo'ya yönlenir), adres çubuğunda `/SOGo` görünmesi kabul edilir.
+
 ## 5. Açık kararlar (Bülent'e sorulacak — karar verilmeden uygulanmaz)
 
 - Kalan **9 domain SOGo'ya (Resco Mail'e) geçecek mi**, ne zaman?
