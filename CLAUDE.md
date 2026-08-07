@@ -41,7 +41,7 @@ Kaynak: https://www.sogo.nu/support/faq/how-to-change-the-color-theme.html
 
 ## 5. Kararlar ve açık sorular
 
-- **KARAR (2026-08-07, Bülent): TÜM domainler SOGo/Resco Mail kullanacak.** Canlı test (curl, 2026-08-07): 9 domain'in `webmail.*` adresi hâlâ Roundcube açıyor, yalnız rescopos.com + pozitifkurumsal.com.tr SOGo'da. (SOGo'nun SQL kullanıcı kaynağı zaten tüm domainleri kapsıyor — geçiş yalnız vhost yönlendirmesi işi.) → **Ayrı faz: 9 webmail vhost'unun SOGo'ya çevrilmesi** — mevcut 2 conf'taki elle desenin aynısı, ama repo'dan yönetilen şablon + apply script ile; Plesk yeniden-üretme riskine kalıcı çözümle birlikte ele alınacak.
+- **KARAR + YAPILDI (2026-08-07): TÜM domainler SOGo/Resco Mail kullanıyor.** Geçişi Bülent kendisi yaptı; canlı test (curl, aynı gün): **11/11 domain `webmail.*` → `/SOGo/` 200 dönüyor.** DİKKAT: conf'lar elle yönetiliyor → **Plesk yeniden-üretme riski artık 11 domain'in tamamı için geçerli** — kalıcılık çözümü (şablon + tekrar-uygula script'i) hâlâ açık iş.
 - **Prod'a iniş yolu:** bu repo prod'da nereye klonlanacak; uygulama (`deploy/apply.sh`: dosyaları yerine kopyalar) elle onaylı mı, rescopos'taki gibi Actions ile mi?
 - Plesk conf ezme riskine kalıcı çözüm (custom template vs her seferinde yeniden uygulama).
 - Logo teslimi (SVG + favicon).
