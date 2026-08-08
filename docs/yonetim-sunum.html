@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Resco Mail Yönetim — V1 görsel sunum</title>
+<style>
+  :root { --mavi:#1E88E5; --lacivert:#2C3E50; --koyu:#33424F; --zemin:#ECF1F6; --kenar:#DDE6EE; --acikmavi:#BBDEFB; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Segoe UI",sans-serif; background:var(--zemin); color:var(--koyu); }
+  header.sunum { background:var(--lacivert); color:#fff; padding:14px 24px; }
+  header.sunum h1 { margin:0; font-size:17px; font-weight:600; }
+  header.sunum p { margin:4px 0 0; font-size:13px; opacity:.8; }
+  nav.sekmeler { display:flex; gap:8px; padding:14px 24px 0; flex-wrap:wrap; }
+  nav.sekmeler button { border:0; padding:10px 18px; border-radius:8px 8px 0 0; cursor:pointer;
+    background:#fff; color:var(--koyu); font-size:14px; }
+  nav.sekmeler button.aktif { background:var(--mavi); color:#fff; font-weight:600; }
+  .ekran { display:none; padding:20px 24px 40px; }
+  .ekran.aktif { display:block; }
+  .cerceve { max-width:1000px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden;
+    box-shadow:0 6px 24px rgba(51,66,79,.18); }
+  .not { max-width:1000px; margin:12px auto 0; font-size:13px; color:#5b6b78; }
+
+  /* uygulama ust bari */
+  .ustbar { background:var(--mavi); color:#fff; padding:12px 20px; display:flex; align-items:center; gap:14px; }
+  .ustbar img { height:26px; }
+  .ustbar b { font-size:16px; font-weight:600; }
+  .ustbar span.sag { margin-left:auto; font-size:13px; opacity:.9; }
+
+  /* giris ekrani */
+  .giris { background:linear-gradient(160deg,var(--lacivert),var(--mavi)); padding:60px 20px; }
+  .giris .kart { background:#fff; max-width:360px; margin:0 auto; border-radius:14px; padding:32px; text-align:center; }
+  .giris img { width:200px; }
+  .giris input { width:100%; padding:12px; margin-top:12px; border:1px solid var(--kenar); border-radius:8px; font-size:14px; }
+  .giris .btn { width:100%; margin-top:16px; }
+
+  /* genel bilesenler */
+  .btn { background:var(--mavi); color:#fff; border:0; border-radius:8px; padding:10px 18px; font-size:14px; cursor:pointer; }
+  .btn.ikincil { background:var(--kenar); color:var(--koyu); }
+  .btn.tehlike { background:#C62828; }
+  .btn.kucuk { padding:6px 10px; font-size:12.5px; border-radius:6px; }
+  .icerik { display:flex; min-height:430px; }
+  .yanmenu { width:190px; background:var(--kenar); padding:10px 0; }
+  .yanmenu div { padding:11px 18px; font-size:14px; cursor:pointer; }
+  .yanmenu div.sec { background:#fff; border-left:4px solid var(--mavi); font-weight:600; }
+  .ana { flex:1; padding:20px; }
+  .arac { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+  .arac select,.arac input { padding:9px 12px; border:1px solid var(--kenar); border-radius:8px; font-size:14px; }
+  .arac .btn { margin-left:auto; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th { text-align:left; background:var(--zemin); padding:10px 12px; font-size:12.5px; text-transform:uppercase; letter-spacing:.4px; color:#5b6b78; }
+  td { padding:10px 12px; border-bottom:1px solid var(--zemin); }
+  td.islem { white-space:nowrap; }
+  .rozet { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+  .rozet.acik { background:#E8F5E9; color:#2E7D32; }
+  .rozet.kapali { background:#FFEBEE; color:#C62828; }
+  .rozet.otp { background:var(--acikmavi); color:#0D47A1; }
+
+  /* modal */
+  .modalzemin { background:rgba(51,66,79,.55); padding:40px 20px; }
+  .modal { background:#fff; max-width:430px; margin:0 auto; border-radius:14px; overflow:hidden; }
+  .modal h3 { margin:0; background:var(--lacivert); color:#fff; padding:14px 20px; font-size:15px; }
+  .modal .govde { padding:20px; }
+  .modal label { display:block; font-size:13px; margin:12px 0 4px; color:#5b6b78; }
+  .modal input,.modal select { width:100%; padding:10px 12px; border:1px solid var(--kenar); border-radius:8px; font-size:14px; }
+  .modal .satir { display:flex; gap:10px; }
+  .modal .satir > div { flex:1; }
+  .modal .alt { display:flex; justify-content:flex-end; gap:10px; padding:16px 20px; background:var(--zemin); }
+
+  /* otp anahtar */
+  .anahtar { width:42px; height:22px; border-radius:12px; background:#B0BEC5; position:relative; display:inline-block; vertical-align:middle; }
+  .anahtar.acik { background:var(--mavi); }
+  .anahtar::after { content:''; width:18px; height:18px; border-radius:50%; background:#fff; position:absolute; top:2px; left:2px; }
+  .anahtar.acik::after { left:22px; }
+</style>
+</head>
+<body>
+
+<header class="sunum">
+  <h1>Resco Mail Yönetim — V1 görsel sunum</h1>
+  <p>Bu bir taslaktır; kod değil, onaya sunulan ekran tasarımıdır. Sekmelerle 4 ekranı gez.</p>
+</header>
+
+<nav class="sekmeler">
+  <button class="aktif" onclick="git(0,this)">1 · Giriş</button>
+  <button onclick="git(1,this)">2 · Hesaplar (ana ekran)</button>
+  <button onclick="git(2,this)">3 · Yeni Hesap</button>
+  <button onclick="git(3,this)">4 · OTP Ayarları</button>
+</nav>
+
+<section class="ekran aktif">
+  <div class="cerceve giris">
+    <div class="kart">
+      <img src="../branding/resco-mail-logo.svg" alt="Resco Mail">
+      <h3 style="margin:14px 0 2px;font-size:16px">Yönetim Paneli</h3>
+      <input type="text" placeholder="Yönetici e-posta">
+      <input type="password" placeholder="Parola">
+      <button class="btn">Giriş</button>
+      <p style="font-size:12px;color:#5b6b78;margin-top:14px">V2'de: parola yerine telefona 6 haneli kod (Kapı)</p>
+    </div>
+  </div>
+  <p class="not">V1'de tek yönetici girişi (sen). Kapı fazı gelince buradaki parola alanı kalkar, SMS-OTP gelir.</p>
+</section>
+
+<section class="ekran">
+  <div class="cerceve">
+    <div class="ustbar"><img src="../branding/resco-mail-logo-dark.svg" alt=""><b>Resco Mail Yönetim</b><span class="sag">bulent · Çıkış</span></div>
+    <div class="icerik">
+      <div class="yanmenu">
+        <div class="sec">📬 Hesaplar</div>
+        <div>📱 OTP Ayarları</div>
+        <div>🌐 Domainler</div>
+        <div>📜 İşlem Kaydı</div>
+      </div>
+      <div class="ana">
+        <div class="arac">
+          <select><option>Tüm domainler (11)</option><option>rescopos.com</option><option>expresscoffee.com.tr</option></select>
+          <input type="text" placeholder="Ara: adres, ad...">
+          <button class="btn">+ Yeni Hesap</button>
+        </div>
+        <table>
+          <tr><th>Adres</th><th>Domain</th><th>OTP</th><th>Durum</th><th>İşlem</th></tr>
+          <tr><td>info@rescopos.com</td><td>rescopos.com</td><td><span class="rozet otp">0532 ••• 82</span></td><td><span class="rozet acik">Açık</span></td>
+              <td class="islem"><button class="btn kucuk ikincil">Şifre Sıfırla</button> <button class="btn kucuk ikincil">Kapat</button> <button class="btn kucuk tehlike">Sil</button></td></tr>
+          <tr><td>satis@expresscoffee.com.tr</td><td>expresscoffee.com.tr</td><td><span class="rozet otp">0555 ••• 41</span></td><td><span class="rozet acik">Açık</span></td>
+              <td class="islem"><button class="btn kucuk ikincil">Şifre Sıfırla</button> <button class="btn kucuk ikincil">Kapat</button> <button class="btn kucuk tehlike">Sil</button></td></tr>
+          <tr><td>muhasebe@maviaysigorta.com</td><td>maviaysigorta.com</td><td style="color:#90A4AE">tanımsız</td><td><span class="rozet kapali">Kapalı</span></td>
+              <td class="islem"><button class="btn kucuk ikincil">Şifre Sıfırla</button> <button class="btn kucuk">Aç</button> <button class="btn kucuk tehlike">Sil</button></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <p class="not">Kaynak Plesk API — hesaplar Plesk'te açılır/kapanır, SOGo otomatik görür. Sil = iki adımlı onay (yanlışlıkla silme yok). Her işlem İşlem Kaydı'na yazılır.</p>
+</section>
+
+<section class="ekran">
+  <div class="cerceve modalzemin">
+    <div class="modal">
+      <h3>Yeni Posta Hesabı</h3>
+      <div class="govde">
+        <div class="satir">
+          <div><label>Kullanıcı</label><input type="text" placeholder="ör. destek"></div>
+          <div><label>Domain</label><select><option>rescopos.com</option><option>expressradyo.com</option></select></div>
+        </div>
+        <label>Parola</label><input type="password" placeholder="otomatik üret ▸">
+        <label>OTP doğrulama telefonu (isteğe bağlı)</label><input type="text" placeholder="kişi bildiği gibi girer">
+        <label>Kota</label><select><option>1 GB</option><option>5 GB</option><option>Sınırsız</option></select>
+      </div>
+      <div class="alt"><button class="btn ikincil">Vazgeç</button><button class="btn">Hesabı Aç</button></div>
+    </div>
+  </div>
+  <p class="not">Telefon alanına format dayatılmaz (senin kuralın) — normalizasyon sunucuda. Parola "otomatik üret" ile güçlü üretilir, kopyalanır.</p>
+</section>
+
+<section class="ekran">
+  <div class="cerceve">
+    <div class="ustbar"><img src="../branding/resco-mail-logo-dark.svg" alt=""><b>Resco Mail Yönetim</b><span class="sag">bulent · Çıkış</span></div>
+    <div class="icerik">
+      <div class="yanmenu">
+        <div>📬 Hesaplar</div>
+        <div class="sec">📱 OTP Ayarları</div>
+        <div>🌐 Domainler</div>
+        <div>📜 İşlem Kaydı</div>
+      </div>
+      <div class="ana">
+        <table>
+          <tr><th>Hesap</th><th>Telefon</th><th>SMS ile giriş</th><th>Son giriş</th></tr>
+          <tr><td>info@rescopos.com</td><td>0532 ••• 82 <button class="btn kucuk ikincil">Değiştir</button></td><td><span class="anahtar acik"></span></td><td>bugün 09:14</td></tr>
+          <tr><td>satis@expresscoffee.com.tr</td><td>0555 ••• 41 <button class="btn kucuk ikincil">Değiştir</button></td><td><span class="anahtar acik"></span></td><td>dün 18:02</td></tr>
+          <tr><td>muhasebe@maviaysigorta.com</td><td><button class="btn kucuk">Telefon Ekle</button></td><td><span class="anahtar"></span></td><td>—</td></tr>
+        </table>
+        <p style="font-size:13px;color:#5b6b78;margin-top:16px">Bu tablo V1'de yalnız KAYIT tutar (telefon + açık/kapalı). V2 Kapı devreye girince "SMS ile giriş" anahtarı gerçek giriş yöntemini belirler.</p>
+      </div>
+    </div>
+  </div>
+  <p class="not">Veri bizim PostgreSQL şemamızda (Plesk'e yazılmaz). SMS gönderimi NetGSM — rescopos'taki api-hub deseninin aynısı, ama bağımsız kurulum.</p>
+</section>
+
+<script>
+function git(i, el){
+  document.querySelectorAll('.ekran').forEach((e,n)=>e.classList.toggle('aktif',n===i));
+  document.querySelectorAll('nav.sekmeler button').forEach(b=>b.classList.remove('aktif'));
+  el.classList.add('aktif');
+}
+</script>
+</body>
+</html>
