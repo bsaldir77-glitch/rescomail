@@ -17,7 +17,7 @@
 - Sunucu: **rescopos prod ile AYNI makine** — Ubuntu 24.04 + Plesk, `server.serviceprovider.com.tr`.
 - **SOGo 5.12.9.20260618-1** (nightly paket), servis adı **`sogo`** (LSB init script; `sogod` değil), dinleme: `127.0.0.1:20000`.
 - Webmail vhost'ları: `/etc/apache2/plesk.conf.d/webmails/*.conf` — **11 domain'den yalnız 2'si SOGo'ya proxy'li** (`rescopos.com`, `pozitifkurumsal.com.tr`): `ProxyPass /SOGo http://127.0.0.1:20000/SOGo` + caldav/carddav well-known rewrite'ları. Kalan 9 domain Plesk Roundcube'da (`plesk-roundcube 1.6.17` kurulu).
-- SOGo'lu conf'lar **elle düzenlenmiş** (`.bak` kopyaları duruyor) → **RİSK: Plesk bu conf'ları yeniden üretirse (webmail ayarı değişimi/repair) elle eklenen SOGo proxy'si silinir.** Kalıcı çözüm araştırılacak (Plesk custom template / panel.ini).
+- **SOGo = Plesk resmî "SOGo Webmail" eklentisi** (2026-08-09 keşfi; `plesk bin extension --list`). Domain webmail seçimi Plesk panelden yapılır, proxy conf'larını Plesk yönetir → conf-ezilme riski DÜŞÜK. Asıl risk: SOGo paket/eklenti güncellemesi `WebServerResources`'ı (tema/logo) ezer → `apply.sh` yeniden çalıştırılır. Hesap kaynağı: MySQL `sogo_users_view` (Plesk psa köprüsü, ssha512, `DomainFieldName=domain`) — hesap CRUD'u Plesk'te, SOGo otomatik görür.
 - Tema dosyaları **paket varsayılanında, hiç dokunulmamış** (18 Haziran paket tarihli):
   `/usr/lib/GNUstep/SOGo/WebServerResources/js/theme.js` (2.2K) · `css/theme-default.css` (440K, üretilmiş) · `img/sogo-full.svg`.
 - `/etc/sogo/sogo.conf`: IMAP/SMTP/sieve/memcached + SQL `SOGoUserSources` (çok domain, `DomainFieldName`). **Hiçbir UI parametresi tanımlı değil** (`SOGoPageTitle`, `SOGoUIxDebugEnabled`, `SOGoUIAdditionalJSFiles` yok → hepsi default).
