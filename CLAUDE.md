@@ -44,7 +44,8 @@ Kaynak: https://www.sogo.nu/support/faq/how-to-change-the-color-theme.html
 - **KARAR + YAPILDI (2026-08-07): TÜM domainler SOGo/Resco Mail kullanıyor.** Geçişi Bülent kendisi yaptı; canlı test (curl, aynı gün): **11/11 domain `webmail.*` → `/SOGo/` 200 dönüyor.** DİKKAT: conf'lar elle yönetiliyor → **Plesk yeniden-üretme riski artık 11 domain'in tamamı için geçerli** — kalıcılık çözümü (şablon + tekrar-uygula script'i) hâlâ açık iş.
 - **Prod'a iniş yolu:** bu repo prod'da nereye klonlanacak; uygulama (`deploy/apply.sh`: dosyaları yerine kopyalar) elle onaylı mı, rescopos'taki gibi Actions ile mi?
 - Plesk conf ezme riskine kalıcı çözüm (custom template vs her seferinde yeniden uygulama).
-- Logo teslimi (SVG + favicon).
+- **Faz önerisi — SMS-OTP parolasız giriş (Bülent vizyonu, 2026-08-09):** e-posta adresi + telefona 6 haneli kod, şifre hiç girilmez/dolaşmaz. SOGo'da yerleşik YOK (yerleşik olan yalnız TOTP-uygulama 2FA). Kurulabilir yol: önde OTP portalı (NetGSM, rescopos api-hub deseni) + `SOGoTrustProxyAuthentication` + IMAP master-user — ciddi güvenlik mühendisliği ister (trust başlığı sızarsa tüm kutular açılır); tasarım dokümanı yazılıp onaylanmadan BAŞLANMAZ.
+- memcached kurulu değil (SOGo onsuz çalışıyor, log hata spam'ı + performans kaybı) — kurulum Bülent'in (prod güncelleme politikası); kurulunca `SOGoMemcachedHost` conf'ta hazır.
 
 ## 6. Depo düzeni (öneri — onaylanınca oluşturulur)
 
