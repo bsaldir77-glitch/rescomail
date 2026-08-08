@@ -40,4 +40,12 @@ if ! grep -q 'SOGoUIAdditionalJSFiles' "$CONF"; then
   echo "[ok] SOGoUIAdditionalJSFiles eklendi"
 fi
 
+# 5) Varsayilan dil: Turkce (kullanicilarin kendi dil tercihi ezilmez, yalniz varsayilan degisir)
+if grep -q 'SOGoLanguage' "$CONF"; then
+  sed -i 's/SOGoLanguage *= *[A-Za-z]*;/SOGoLanguage = TurkishTurkey;/' "$CONF"
+else
+  sed -i '0,/{/s//{\n  SOGoLanguage = TurkishTurkey;/' "$CONF"
+fi
+echo "[ok] SOGoLanguage = TurkishTurkey"
+
 echo "TAMAM — degisiklikler restart'a kadar gorunmez. Restart ayri onayla."
