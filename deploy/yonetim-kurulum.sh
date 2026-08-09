@@ -6,6 +6,9 @@ HEDEF=/var/www/vhosts/rescopos.com/mailprovider.rescopos.com
 KLON="$HEDEF/rescomail"
 ENVD="$KLON/yonetim/.env"
 
+# 0) klon vhost kullanicisina chown'lu — root'un git'i icin guvenli dizin istisnasi
+git config --global --add safe.directory "$KLON" 2>/dev/null || true
+
 # 1) uygulama klonu (git-first: her sey GitHub'dan iner)
 if [ ! -d "$KLON/.git" ]; then
   git clone -q https://github.com/bsaldir77-glitch/rescomail "$KLON"
