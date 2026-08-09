@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 345" role="img" aria-label="Resco Mail">
+  <!-- Koyu zemin surumu: beyaz + mavi #1E88E5 (orijinal logo gorunumu) -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- zarf -->
+    <g stroke="#FFFFFF" stroke-width="11">
+      <rect x="140" y="60" width="150" height="104" rx="14"/>
+      <path d="M 150,74 L 215,126 L 280,74"/>
+    </g>
+    <!-- onay isareti -->
+    <path d="M 234,116 L 260,146 L 320,72" stroke="#1E88E5" stroke-width="18"/>
+    <!-- yukselen sinyal noktalari -->
+    <g stroke="none">
+      <circle cx="298" cy="50" r="5.5" fill="#FFFFFF"/>
+      <circle cx="298" cy="34" r="5.5" fill="#1E88E5"/>
+      <circle cx="316" cy="44" r="5.5" fill="#1E88E5"/>
+      <circle cx="316" cy="28" r="5.5" fill="#FFFFFF"/>
+      <circle cx="316" cy="12" r="5.5" fill="#1E88E5"/>
+      <circle cx="334" cy="38" r="5.5" fill="#FFFFFF"/>
+      <circle cx="334" cy="22" r="5.5" fill="#1E88E5"/>
+    </g>
+    <!-- yazi: "resco" beyaz -->
+    <g transform="translate(8,330)">
+      <g stroke="#FFFFFF" stroke-width="10">
+        <path d="M 0,0 V -44 M 0,-26 Q 0,-44 24,-44"/>
+        <path d="M 41,-22 H 83 M 84,-22 A 22 22 0 1 0 78.9,-7.9"/>
+        <path d="M 130,-41 C 124,-47 106,-46 105,-36 C 104,-25 129,-27 130,-13 C 131,-2 107,-1 101,-8"/>
+        <path d="M 185.1,-38.9 A 22 22 0 1 0 185.1,-5.1"/>
+        <circle cx="229" cy="-22" r="22"/>
+      </g>
+      <!-- yazi: "mail" mavi -->
+      <g stroke="#1E88E5" stroke-width="10">
+        <path d="M 285,0 V -44 M 285,-31 A 13 13 0 0 1 311,-31 L 311,0 M 311,-31 A 13 13 0 0 1 337,-31 L 337,0"/>
+        <circle cx="373" cy="-22" r="22"/>
+        <path d="M 395,0 V -44"/>
+        <path d="M 409,0 V -44"/>
+        <path d="M 425,0 V -64"/>
+      </g>
+      <circle cx="409" cy="-60" r="6" fill="#1E88E5" stroke="none"/>
+    </g>
+  </g>
+</svg>

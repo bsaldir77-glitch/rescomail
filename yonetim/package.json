@@ -1,0 +1,14 @@
+{
+  "name": "rescomail-yonetim",
+  "version": "0.1.0",
+  "description": "Resco Mail Yonetim — Plesk posta hesaplari + OTP ayarlari paneli",
+  "main": "app.js",
+  "scripts": { "start": "node app.js" },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mysql2": "^3.10.0",
+    "pg": "^8.12.0"
+  }
+}

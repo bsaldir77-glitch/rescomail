@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resco Mail Yönetim</title>
+<link rel="stylesheet" href="stil.css">
+</head>
+<body>
+
+<div id="giris" class="giris gizli">
+  <div class="kart">
+    <img src="logo.svg" alt="Resco Mail">
+    <h3 id="giris-baslik">Yönetim Paneli</h3>
+    <p id="kurulum-not" class="gizli kucuknot">İlk kurulum: yönetici hesabını oluştur (bir kez).</p>
+    <input id="g-eposta" type="text" placeholder="Yönetici e-posta" autocomplete="username">
+    <input id="g-parola" type="password" placeholder="Parola" autocomplete="current-password">
+    <button id="g-btn" class="btn tam">Giriş</button>
+    <p id="g-hata" class="hata"></p>
+  </div>
+</div>
+
+<div id="panel" class="gizli">
+  <div class="ustbar">
+    <img src="logo-koyu.svg" alt=""><b>Resco Mail Yönetim</b>
+    <span class="sag"><span id="kim"></span> · <a href="#" id="cikis">Çıkış</a></span>
+  </div>
+  <div class="icerik">
+    <div class="yanmenu">
+      <div data-sekme="hesaplar" class="sec">📬 Hesaplar</div>
+      <div data-sekme="otp">📱 OTP Ayarları</div>
+      <div data-sekme="kayitlar">📜 İşlem Kaydı</div>
+    </div>
+    <div class="ana">
+
+      <div id="sekme-hesaplar">
+        <div class="arac">
+          <select id="f-domain"><option value="">Tüm domainler</option></select>
+          <input id="f-ara" type="text" placeholder="Ara: adres...">
+          <button id="yeni-btn" class="btn">+ Yeni Hesap</button>
+        </div>
+        <table id="t-hesaplar">
+          <thead><tr><th>Adres</th><th>Domain</th><th>OTP Telefonu</th><th>İşlem</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="sekme-otp" class="gizli">
+        <table id="t-otp">
+          <thead><tr><th>Hesap</th><th>Telefon</th><th>SMS ile giriş (V2'de aktifleşir)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="sekme-kayitlar" class="gizli">
+        <table id="t-kayitlar">
+          <thead><tr><th>Zaman</th><th>Yönetici</th><th>İşlem</th><th>Hedef</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="modal-zemin" class="modalzemin gizli">
+  <div class="modal">
+    <h3 id="m-baslik"></h3>
+    <div class="govde" id="m-govde"></div>
+    <div class="alt">
+      <button class="btn ikincil" id="m-vazgec">Vazgeç</button>
+      <button class="btn" id="m-tamam">Tamam</button>
+    </div>
+  </div>
+</div>
+
+<script src="uygulama.js"></script>
+</body>
+</html>
