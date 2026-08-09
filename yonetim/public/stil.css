@@ -61,3 +61,4 @@ td input.tablo-ici { padding:6px 8px; border:1px solid var(--kenar); border-radi
 .modal .parola-goster { font-family:Consolas,monospace; background:#F4F7FA; border:1px dashed var(--kenar);
   padding:12px; border-radius:8px; font-size:15px; text-align:center; -webkit-user-select:all; user-select:all; }
 .baglanti-kart .btn { margin-top:14px; }
+.baglanti-kart + .baglanti-kart { margin-top:16px; }

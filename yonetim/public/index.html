@@ -15,7 +15,8 @@
     <p id="kurulum-not" class="gizli kucuknot">İlk kurulum: yönetici hesabını oluştur (bir kez).</p>
     <input id="g-eposta" type="text" placeholder="Yönetici e-posta" autocomplete="username">
     <input id="g-parola" type="password" placeholder="Parola" autocomplete="current-password">
-    <button id="g-btn" class="btn tam">Giriş</button>
+    <input id="g-kod" class="gizli" placeholder="Telefona gelen 6 haneli kod" inputmode="numeric" autocomplete="one-time-code">
+    <button id="g-btn" class="btn tam" type="button">Giriş</button>
     <p id="g-hata" class="hata"></p>
   </div>
 </div>
@@ -36,7 +37,7 @@
 
       <div id="sekme-hesaplar">
         <div class="arac">
-          <select id="f-domain"><option value="">Tüm domainler</option></select>
+          <select id="f-domain" title="Domain filtresi"><option value="">Tüm domainler</option></select>
           <input id="f-ara" type="text" placeholder="Ara: adres...">
           <button id="yeni-btn" class="btn">+ Yeni Hesap</button>
         </div>
@@ -66,6 +67,16 @@
           <label for="b-test-tel">Test SMS — telefon</label><input id="b-test-tel" autocomplete="off" placeholder="kendi numaran">
           <button id="b-test" class="btn ikincil" type="button">Test SMS Gönder</button>
           <span id="b-test-durum" class="kucuknot"></span>
+        </div>
+        <div class="baglanti-kart">
+          <h4>Yönetici Girişi — tek kod</h4>
+          <p class="kucuknot">Açıkken parola sorulmaz: e-posta + telefona gelen 6 haneli kod ile girilir.
+          <b>UYARI:</b> numaranı önce yukarıdaki Test SMS ile doğrula — yanlış numara panele girişi kilitler.</p>
+          <label for="y-telefon">Yönetici telefonu</label><input id="y-telefon" autocomplete="off">
+          <label>Girişte yalnız SMS kodu</label>
+          <span class="anahtar" id="y-anahtar" role="switch" aria-checked="false" title="Girişte yalnız SMS kodu" tabindex="0"></span>
+          <button id="y-kaydet" class="btn" type="button">Kaydet</button>
+          <span id="y-durum" class="kucuknot"></span>
         </div>
       </div>
 

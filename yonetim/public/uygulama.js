@@ -29,12 +29,30 @@ async function baslat() {
   }
 }
 
+let giris_modu = 'ilk'; // otp moduna gecince kod dogrulanir
 $('#g-btn').addEventListener('click', async () => {
   $('#g-hata').textContent = '';
-  const govde = { eposta: $('#g-eposta').value.trim(), parola: $('#g-parola').value };
+  const eposta = $('#g-eposta').value.trim();
   try {
-    if ($('#g-btn').textContent === 'Yönetici Oluştur') await api('/api/kurulum', govde);
-    await api('/api/giris', govde);
+    if ($('#g-btn').textContent === 'Yönetici Oluştur') {
+      await api('/api/kurulum', { eposta, parola: $('#g-parola').value });
+      await api('/api/giris', { eposta, parola: $('#g-parola').value });
+      return location.reload();
+    }
+    if (giris_modu === 'otp') {
+      await api('/api/giris/otp', { eposta, kod: $('#g-kod').value.trim() });
+      return location.reload();
+    }
+    const s = await api('/api/giris', { eposta, parola: $('#g-parola').value });
+    if (s.otp_gerekli) {
+      giris_modu = 'otp';
+      $('#g-parola').classList.add('gizli');
+      $('#g-kod').classList.remove('gizli');
+      $('#g-btn').textContent = 'Kodu Doğrula';
+      $('#g-hata').textContent = s.not || 'Kod telefonuna gönderildi';
+      return;
+    }
+    if (s.parola_gerekli) { $('#g-hata').textContent = 'Parolanı gir'; return; }
     location.reload();
   } catch (e) { $('#g-hata').textContent = e.message; }
 });
@@ -60,7 +78,7 @@ document.querySelectorAll('.yanmenu div').forEach(el => el.addEventListener('cli
   el.classList.add('sec');
   ['hesaplar', 'otp', 'baglantilar', 'kayitlar'].forEach(s => $('#sekme-' + s).classList.toggle('gizli', s !== el.dataset.sekme));
   if (el.dataset.sekme === 'kayitlar') kayitlari_ciz();
-  if (el.dataset.sekme === 'baglantilar') baglantilari_ciz();
+  if (el.dataset.sekme === 'baglantilar') { baglantilari_ciz(); yonetici_ciz(); }
 }));
 
 // --- baglantilar (sifreli kasa) ---
@@ -80,6 +98,28 @@ $('#b-kaydet').addEventListener('click', async () => {
     await baglantilari_ciz();
   } catch (e) { $('#b-durum').textContent = ' Hata: ' + e.message; }
 });
+async function yonetici_ciz() {
+  const y = await api('/api/yonetici').catch(() => ({}));
+  $('#y-telefon').value = y.telefon || '';
+  $('#y-anahtar').classList.toggle('acik', !!y.sms_giris);
+  $('#y-anahtar').setAttribute('aria-checked', String(!!y.sms_giris));
+}
+$('#y-anahtar').addEventListener('click', () => {
+  const a = $('#y-anahtar');
+  a.classList.toggle('acik');
+  a.setAttribute('aria-checked', String(a.classList.contains('acik')));
+});
+$('#y-kaydet').addEventListener('click', async () => {
+  try {
+    await api('/api/yonetici', {
+      telefon: $('#y-telefon').value,
+      sms_giris: $('#y-anahtar').classList.contains('acik')
+    });
+    $('#y-durum').textContent = ' Kaydedildi ✔' +
+      ($('#y-anahtar').classList.contains('acik') ? ' — bir sonraki girişte yalnız SMS kodu sorulur' : '');
+  } catch (e) { $('#y-durum').textContent = ' Hata: ' + e.message; }
+});
+
 $('#b-test').addEventListener('click', async () => {
   $('#b-test-durum').textContent = ' Gönderiliyor...';
   try {

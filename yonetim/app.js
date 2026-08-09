@@ -42,15 +42,95 @@ app.post('/api/kurulum', async (req, res) => {
   res.json({ tamam: true });
 });
 
+function oturum_ver(res, eposta) {
+  res.setHeader('Set-Cookie',
+    `rm_oturum=${cerez_uret(eposta)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=28800`);
+}
+
+async function netgsm_kimlik() {
+  const kasa = require('./lib/kasa');
+  const { rows } = await db.pg.query("SELECT veri_sifreli FROM baglanti_ayarlari WHERE saglayici='netgsm'");
+  if (!rows.length) return null;
+  const k = kasa.coz(rows[0].veri_sifreli);
+  return (k && k.kullanici && k.parola && k.baslik) ? k : null;
+}
+
+// Giris: SMS acizsa parolasiz tek-kod akisi (Bulent karari: "tek sifre"); degilse klasik parola
 app.post('/api/giris', hiz_siniri, async (req, res) => {
   const { eposta, parola } = req.body || {};
+  const e = String(eposta || '').toLowerCase();
   const { rows } = await db.pg.query(
-    'SELECT parola_hash FROM yoneticiler WHERE eposta=$1 AND aktif', [String(eposta || '').toLowerCase()]);
-  if (!rows.length || !(await bcrypt.compare(parola || '', rows[0].parola_hash)))
-    return res.status(403).json({ hata: 'E-posta veya parola hatali' }); // 403 — 401 logout tuzagi dersi
-  res.setHeader('Set-Cookie',
-    `rm_oturum=${cerez_uret(eposta.toLowerCase())}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=28800`);
-  await db.kayit(eposta.toLowerCase(), 'giris', null, null);
+    'SELECT parola_hash, telefon, sms_giris FROM yoneticiler WHERE eposta=$1 AND aktif', [e]);
+  if (!rows.length) return res.status(403).json({ hata: 'E-posta veya parola hatali' }); // 403 — 401 logout tuzagi
+  const y = rows[0];
+
+  if (y.sms_giris && y.telefon) {
+    // parolasiz akis — SMS bombalamaya karsi: gecerli kod varsa ve 60 sn gecmediyse yeniden gonderme
+    const eski = await db.pg.query('SELECT bitis FROM giris_kodlari WHERE eposta=$1', [e]);
+    if (eski.rows.length && new Date(eski.rows[0].bitis).getTime() - Date.now() > 4 * 60 * 1000)
+      return res.json({ otp_gerekli: true, not: 'Kod zaten gonderildi — SMS\'i bekle' });
+    const kimlik = await netgsm_kimlik();
+    if (!kimlik) return res.status(502).json({ hata: 'NetGSM tanimli degil — SMS girisi calisamaz' });
+    const kod = String(crypto.randomInt(100000, 1000000));
+    const kod_hash = crypto.createHash('sha256').update(kod).digest('hex');
+    await db.pg.query(
+      `INSERT INTO giris_kodlari (eposta, kod_hash, bitis, deneme) VALUES ($1,$2,now()+interval '5 minutes',0)
+       ON CONFLICT (eposta) DO UPDATE SET kod_hash=$2, bitis=now()+interval '5 minutes', deneme=0`,
+      [e, kod_hash]);
+    const netgsm = require('./lib/netgsm');
+    const sonuc = await netgsm.sms_gonder(kimlik, y.telefon, `Resco Mail giris kodu: ${kod}`);
+    if (!sonuc.ok) return res.status(502).json({ hata: 'SMS gonderilemedi: ' + sonuc.hata });
+    await db.kayit(e, 'giris_kod_gonderildi', null, null);
+    return res.json({ otp_gerekli: true });
+  }
+
+  if (!parola) return res.json({ parola_gerekli: true });
+  if (!(await bcrypt.compare(parola, y.parola_hash)))
+    return res.status(403).json({ hata: 'E-posta veya parola hatali' });
+  oturum_ver(res, e);
+  await db.kayit(e, 'giris', null, null);
+  res.json({ tamam: true });
+});
+
+app.post('/api/giris/otp', hiz_siniri, async (req, res) => {
+  const { eposta, kod } = req.body || {};
+  const e = String(eposta || '').toLowerCase();
+  const { rows } = await db.pg.query('SELECT kod_hash, bitis, deneme FROM giris_kodlari WHERE eposta=$1', [e]);
+  if (!rows.length || new Date(rows[0].bitis).getTime() < Date.now())
+    return res.status(403).json({ hata: 'Kod suresi doldu — yeniden giris yap' });
+  if (rows[0].deneme >= 5) {
+    await db.pg.query('DELETE FROM giris_kodlari WHERE eposta=$1', [e]);
+    return res.status(403).json({ hata: 'Cok fazla yanlis deneme — yeniden giris yap' });
+  }
+  const hash = crypto.createHash('sha256').update(String(kod || '')).digest('hex');
+  if (hash !== rows[0].kod_hash) {
+    await db.pg.query('UPDATE giris_kodlari SET deneme=deneme+1 WHERE eposta=$1', [e]);
+    return res.status(403).json({ hata: 'Kod hatali' });
+  }
+  await db.pg.query('DELETE FROM giris_kodlari WHERE eposta=$1', [e]);
+  oturum_ver(res, e);
+  await db.kayit(e, 'giris_otp', null, null);
+  res.json({ tamam: true });
+});
+
+// Yonetici giris ayarlari (telefon + SMS'li giris anahtari)
+app.get('/api/yonetici', oturum_gerekli, async (req, res) => {
+  const { rows } = await db.pg.query('SELECT eposta, telefon, sms_giris FROM yoneticiler WHERE eposta=$1', [req.yonetici]);
+  res.json(rows[0] || {});
+});
+
+app.post('/api/yonetici', oturum_gerekli, async (req, res) => {
+  const { telefon, sms_giris } = req.body || {};
+  const netgsm = require('./lib/netgsm');
+  const tel = netgsm.telefon_tr(telefon);
+  const acik = sms_giris === true || sms_giris === 'true' || sms_giris === '1';
+  if (acik) {
+    if (!tel) return res.status(400).json({ hata: 'SMS girisi icin gecerli telefon sart' });
+    if (!(await netgsm_kimlik())) return res.status(400).json({ hata: 'Once NetGSM bilgilerini kaydet ve test et' });
+  }
+  await db.pg.query('UPDATE yoneticiler SET telefon=$1, sms_giris=$2 WHERE eposta=$3',
+    [tel, acik, req.yonetici]);
+  await db.kayit(req.yonetici, 'yonetici_giris_ayari', null, { sms_giris: acik });
   res.json({ tamam: true });
 });
 
