@@ -191,6 +191,52 @@ app.post('/api/hesaplar/sil', oturum_gerekli, async (req, res) => {
   res.json({ tamam: true });
 });
 
+// --- hesap detayi + tek pencerede duzenleme ---
+app.get('/api/hesaplar/detay', oturum_gerekli, async (req, res) => {
+  const eposta = String(req.query.eposta || '').trim().toLowerCase();
+  if (!eposta_gecerli(eposta)) return res.status(400).json({ hata: 'Gecersiz adres' });
+  const c = await plesk.bilgi(eposta);
+  const metin = String(c.stdout || '');
+  const al = etiket => {
+    const m = metin.match(new RegExp('^' + etiket + ':\\s*(.*)$', 'mi'));
+    return m ? m[1].trim() : '';
+  };
+  const otp = await db.pg.query('SELECT telefon, sms_giris_acik FROM otp_ayarlari WHERE eposta=$1', [eposta]);
+  res.json({
+    eposta,
+    kutu: /true/i.test(al('Mailbox')),
+    kota: al('Mbox quota'),
+    aciklama: al('Description'),
+    otp: otp.rows[0] || null
+  });
+});
+
+app.post('/api/hesaplar/duzenle', oturum_gerekli, async (req, res) => {
+  const netgsm = require('./lib/netgsm');
+  const { eposta: ham, aciklama, kota, kutu, parola, telefon, sms_giris_acik } = req.body || {};
+  const eposta = String(ham || '').trim().toLowerCase();
+  if (!eposta_gecerli(eposta)) return res.status(400).json({ hata: 'Gecersiz adres' });
+
+  const ekler = [];
+  if (typeof aciklama === 'string') ekler.push('-description', aciklama);
+  if (kota) ekler.push('-mbox_quota', kota);                       // orn. 1G · 5G · -1 (sinirsiz)
+  if (kutu === true || kutu === false) ekler.push('-mailbox', kutu ? 'true' : 'false');
+  if (parola) ekler.push('-passwd', parola);
+  if (ekler.length) await plesk.guncelle(eposta, ekler);
+
+  const acik = sms_giris_acik === true || sms_giris_acik === 'true' || sms_giris_acik === '1';
+  const tel = netgsm.telefon_tr(telefon);
+  if (acik && !tel) return res.status(400).json({ hata: 'SMS ile giris icin gecerli telefon sart' });
+  await db.pg.query(
+    `INSERT INTO otp_ayarlari (eposta, telefon, sms_giris_acik) VALUES ($1,$2,$3)
+     ON CONFLICT (eposta) DO UPDATE SET telefon=$2, sms_giris_acik=$3, guncelleme=now()`,
+    [eposta, tel, acik]);
+
+  await db.kayit(req.yonetici, 'hesap_duzenle', eposta,
+    { alanlar: ekler.filter((_, i) => i % 2 === 0).map(a => a.replace('-', '')), sms_giris_acik: acik });
+  res.json({ tamam: true, parola: parola ? parola : undefined });
+});
+
 // --- otp ayarlari ---
 app.post('/api/otp', oturum_gerekli, async (req, res) => {
   const { eposta, telefon, sms_giris_acik } = req.body || {};

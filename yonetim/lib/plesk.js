@@ -46,4 +46,7 @@ const hesap_kapat = eposta => cli_cagir(['--off', eposta]);
 const hesap_ac_durum = eposta => cli_cagir(['--on', eposta]);
 const hesap_sil = eposta => cli_cagir(['--remove', eposta]);
 
-module.exports = { hesap_ac, parola_degistir, hesap_kapat, hesap_ac_durum, hesap_sil };
+const bilgi = eposta => cli_cagir(['--info', eposta]);
+const guncelle = (eposta, ekler) => cli_cagir(['--update', eposta].concat(ekler));
+
+module.exports = { hesap_ac, parola_degistir, hesap_kapat, hesap_ac_durum, hesap_sil, bilgi, guncelle };

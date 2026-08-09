@@ -167,7 +167,7 @@ function hesaplari_ciz() {
       <td>${kacir(h.eposta)}</td><td>${kacir(h.domain)}</td>
       <td>${h.otp && h.otp.telefon ? kacir(h.otp.telefon) : '<span class="kucuknot">tanımsız</span>'}</td>
       <td class="islem">
-        <button class="btn kucuk ikincil" data-is="sifre" data-e="${kacir(h.eposta)}">Şifre Sıfırla</button>
+        <button class="btn kucuk" data-is="duzenle" data-e="${kacir(h.eposta)}">Düzenle</button>
         <button class="btn kucuk ikincil" data-is="bilgi" data-e="${kacir(h.eposta)}">Bilgi Gönder</button>
         <button class="btn kucuk tehlike" data-is="sil" data-e="${kacir(h.eposta)}">Sil</button>
       </td></tr>`).join('');
@@ -240,6 +240,50 @@ document.addEventListener('click', async e => {
 document.addEventListener('click', async e => {
   const b = e.target.closest('button[data-is]'); if (!b) return;
   const eposta = b.dataset.e;
+  if (b.dataset.is === 'duzenle') {
+    let d;
+    try { d = await api('/api/hesaplar/detay?eposta=' + encodeURIComponent(eposta)); }
+    catch (x) { return alert(x.message); }
+    const kotalar = ['', '-1', '1G', '5G', '10G'];
+    const kotaEtiket = { '': 'Değiştirme (' + (d.kota || 'varsayılan') + ')', '-1': 'Sınırsız',
+      '1G': '1 GB', '5G': '5 GB', '10G': '10 GB' };
+    modal_ac('Hesabı Düzenle — ' + eposta, `
+      <label>Görünen ad / açıklama</label>
+      <input id="d-aciklama" value="${kacir(d.aciklama || '')}" placeholder="ör. Muhasebe">
+      <div class="satir">
+        <div><label>Kota</label><select id="d-kota">
+          ${kotalar.map(k => `<option value="${k}">${kacir(kotaEtiket[k])}</option>`).join('')}
+        </select></div>
+        <div><label>Posta kutusu</label><select id="d-kutu">
+          <option value="1"${d.kutu ? ' selected' : ''}>Açık</option>
+          <option value="0"${d.kutu ? '' : ' selected'}>Kapalı</option>
+        </select></div>
+      </div>
+      <label>Yeni parola <span class="kucuknot">(boş bırakırsan değişmez)</span></label>
+      <input id="d-parola" placeholder="değiştirmek için yaz">
+      <hr>
+      <label>OTP doğrulama telefonu</label>
+      <input id="d-telefon" value="${d.otp && d.otp.telefon ? kacir(d.otp.telefon) : ''}" placeholder="kişi bildiği gibi girer">
+      <label>SMS ile giriş</label>
+      <select id="d-sms">
+        <option value="1"${d.otp && d.otp.sms_giris_acik ? ' selected' : ''}>Açık — webmail'e kodla girer</option>
+        <option value="0"${d.otp && d.otp.sms_giris_acik ? '' : ' selected'}>Kapalı — webmail'e giremez</option>
+      </select>`,
+      'Kaydet', async () => {
+        const s = await api('/api/hesaplar/duzenle', {
+          eposta,
+          aciklama: $('#d-aciklama').value,
+          kota: $('#d-kota').value || undefined,
+          kutu: $('#d-kutu').value === '1',
+          parola: $('#d-parola').value || undefined,
+          telefon: $('#d-telefon').value,
+          sms_giris_acik: $('#d-sms').value === '1'
+        });
+        if (s.parola) parola_goster('Yeni parola', s.parola, eposta);
+        else modal_kapat();
+        await yenile();
+      });
+  }
   if (b.dataset.is === 'sifre') {
     modal_ac('Şifre Sıfırla', `<p><b>${kacir(eposta)}</b> için yeni parola üretilecek. Eski parola geçersiz olur.</p>`,
       'Sıfırla', async () => {
