@@ -31,6 +31,7 @@
       <div data-sekme="hesaplar" class="sec">📬 Hesaplar</div>
       <div data-sekme="otp">📱 OTP Ayarları</div>
       <div data-sekme="baglantilar">🔌 Bağlantılar</div>
+      <div data-sekme="sms">✉️ SMS Kayıtları</div>
       <div data-sekme="kayitlar">📜 İşlem Kaydı</div>
     </div>
     <div class="ana">
@@ -82,6 +83,24 @@
           <button id="y-kaydet" class="btn" type="button">Kaydet</button>
           <span id="y-durum" class="kucuknot"></span>
         </div>
+      </div>
+
+      <div id="sekme-sms" class="gizli">
+        <div class="arac">
+          <select id="s-tur" title="Tür filtresi">
+            <option value="">Tüm SMS'ler</option>
+            <option value="webmail_kodu">Webmail giriş kodu</option>
+            <option value="giris_kodu">Panel giriş kodu</option>
+            <option value="hesap_bilgisi">Hesap bilgilendirme</option>
+            <option value="test">Bağlantı testi</option>
+          </select>
+          <button id="s-durum" class="btn" type="button">Teslim durumlarını sorgula</button>
+          <span id="s-durum-not" class="kucuknot"></span>
+        </div>
+        <table id="t-sms">
+          <thead><tr><th>Zaman</th><th>Tür</th><th>Alıcı</th><th>Hesap</th><th>Gönderim</th><th>Teslim</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
 
       <div id="sekme-kayitlar" class="gizli">

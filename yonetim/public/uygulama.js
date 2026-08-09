@@ -91,9 +91,10 @@ function panel_ac() {
 document.querySelectorAll('.yanmenu div').forEach(el => el.addEventListener('click', () => {
   document.querySelectorAll('.yanmenu div').forEach(d => d.classList.remove('sec'));
   el.classList.add('sec');
-  ['hesaplar', 'otp', 'baglantilar', 'kayitlar'].forEach(s => $('#sekme-' + s).classList.toggle('gizli', s !== el.dataset.sekme));
+  ['hesaplar', 'otp', 'baglantilar', 'sms', 'kayitlar'].forEach(s => $('#sekme-' + s).classList.toggle('gizli', s !== el.dataset.sekme));
   if (el.dataset.sekme === 'kayitlar') kayitlari_ciz();
   if (el.dataset.sekme === 'baglantilar') { baglantilari_ciz(); yonetici_ciz(); }
+  if (el.dataset.sekme === 'sms') sms_ciz();
 }));
 
 // --- baglantilar (sifreli kasa) ---
@@ -364,6 +365,46 @@ document.addEventListener('click', async e => {
       .catch(x => alert(x.message));
     await yenile();
   }
+});
+
+// --- SMS kayitlari ---
+let sms_veri = [];
+const SMS_TUR = { webmail_kodu: 'Webmail giriş kodu', giris_kodu: 'Panel giriş kodu',
+  hesap_bilgisi: 'Hesap bilgilendirme', test: 'Bağlantı testi' };
+
+async function sms_ciz(yeniden) {
+  if (yeniden !== false) sms_veri = await api('/api/sms-kayitlari').catch(() => []);
+  const tur = $('#s-tur').value;
+  const rozet = (metin, renk) =>
+    `<span class="rozet" style="background:${renk[0]};color:${renk[1]}">${kacir(metin)}</span>`;
+  const teslim_rozet = k => {
+    if (k.sonuc !== 'gonderildi') return '<span class="kucuknot">—</span>';
+    if (!k.teslim) return '<span class="kucuknot">sorulmadı</span>';
+    if (k.teslim === 'iletildi') return rozet('iletildi ✓', ['#E8F5E9', '#2E7D32']);
+    if (k.teslim === 'bekliyor') return rozet('bekliyor', ['#FFF8E1', '#9A6B00']);
+    return rozet(k.teslim, ['#FFEBEE', '#C62828']);
+  };
+  $('#t-sms tbody').innerHTML = sms_veri
+    .filter(k => !tur || k.tur === tur)
+    .map(k => `<tr>
+      <td>${new Date(k.ts).toLocaleString('tr-TR')}</td>
+      <td>${kacir(SMS_TUR[k.tur] || k.tur)}</td>
+      <td>${kacir(k.telefon)}</td>
+      <td>${kacir(k.eposta || '')}</td>
+      <td>${k.sonuc === 'gonderildi'
+            ? rozet('gönderildi', ['#E3F2FD', '#0D47A1'])
+            : rozet('hata: ' + (k.hata || k.kod || ''), ['#FFEBEE', '#C62828'])}</td>
+      <td>${teslim_rozet(k)}</td>
+    </tr>`).join('') || '<tr><td colspan="6">Kayıt yok</td></tr>';
+}
+$('#s-tur').addEventListener('change', () => sms_ciz(false));
+$('#s-durum').addEventListener('click', async () => {
+  $('#s-durum-not').textContent = ' NetGSM\'e soruluyor...';
+  try {
+    const s = await api('/api/sms-kayitlari/durum', {});
+    $('#s-durum-not').textContent = ` ${s.sorulan} kayıt soruldu, ${s.guncellenen} güncellendi`;
+    await sms_ciz();
+  } catch (e) { $('#s-durum-not').textContent = ' Hata: ' + e.message; }
 });
 
 // --- kayitlar ---

@@ -61,6 +61,24 @@ async function netgsm_kimlik() {
   return (k && k.kullanici && k.parola && k.baslik) ? k : null;
 }
 
+// TEK SMS CIKIS KAPISI — her gonderim sms_kayitlari'na yazilir (kodun kendisi ASLA kaydedilmez)
+async function sms_yolla(tur, eposta, telefon, mesaj, ozet) {
+  const netgsm = require('./lib/netgsm');
+  const kimlik = await netgsm_kimlik();
+  const yaz = s => db.pg.query(
+    `INSERT INTO sms_kayitlari (tur, eposta, telefon, ozet, sonuc, kod, hata, jobid)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+    [tur, eposta || null, telefon, ozet || null, s.ok ? 'gonderildi' : 'hata',
+     s.kod || null, s.hata || null, s.jobid || null]);
+  if (!kimlik) {
+    const s = { ok: false, kod: 'YAPILANDIRMA', hata: 'NetGSM bilgileri tanimli degil' };
+    await yaz(s); return s;
+  }
+  const s = await netgsm.sms_gonder(kimlik, telefon, mesaj);
+  await yaz(s);
+  return s;
+}
+
 // Giris: SMS acizsa parolasiz tek-kod akisi (Bulent karari: "tek sifre"); degilse klasik parola
 app.post('/api/giris', hiz_siniri, async (req, res) => {
   const { eposta, parola } = req.body || {};
@@ -83,8 +101,8 @@ app.post('/api/giris', hiz_siniri, async (req, res) => {
       `INSERT INTO giris_kodlari (eposta, kod_hash, bitis, deneme) VALUES ($1,$2,now()+interval '5 minutes',0)
        ON CONFLICT (eposta) DO UPDATE SET kod_hash=$2, bitis=now()+interval '5 minutes', deneme=0`,
       [e, kod_hash]);
-    const netgsm = require('./lib/netgsm');
-    const sonuc = await netgsm.sms_gonder(kimlik, y.telefon, `Resco Mail giris kodu: ${kod}`);
+    const sonuc = await sms_yolla('giris_kodu', e, y.telefon,
+      `Resco Mail giris kodu: ${kod}`, 'panel giris kodu');
     if (!sonuc.ok) return res.status(502).json({ hata: 'SMS gonderilemedi: ' + sonuc.hata });
     await db.kayit(e, 'giris_kod_gonderildi', null, null);
     return res.json({ otp_gerekli: true });
@@ -306,7 +324,7 @@ app.post('/api/baglantilar/test', oturum_gerekli, async (req, res) => {
   const kimlik = kasa.coz(rows[0].veri_sifreli);
   if (!kimlik || !kimlik.kullanici || !kimlik.parola || !kimlik.baslik)
     return res.status(400).json({ hata: 'NetGSM alanlari eksik (kullanici/parola/baslik)' });
-  const sonuc = await netgsm.sms_gonder(kimlik, tel, 'Resco Mail baglanti testi basarili.');
+  const sonuc = await sms_yolla('test', null, tel, 'Resco Mail baglanti testi basarili.', 'baglanti testi');
   await db.kayit(req.yonetici, 'baglanti_test', 'netgsm', { telefon: tel, ok: sonuc.ok, kod: sonuc.kod || '00' });
   if (!sonuc.ok) return res.status(502).json({ hata: sonuc.hata, kod: sonuc.kod });
   res.json({ tamam: true, jobid: sonuc.jobid });
@@ -348,8 +366,9 @@ app.post('/api/hesaplar/bilgi', oturum_gerekli, async (req, res) => {
     `INSERT INTO bilgi_paketleri (token, eposta, icerik_sifreli, bitis) VALUES ($1,$2,$3, now()+interval '1 hour')`,
     [token, eposta.toLowerCase(), kasa.sifrele(icerik)]);
   const link = `https://mailprovider.rescopos.com/bilgi/${token}`;
-  const sonuc = await netgsm.sms_gonder(kimlik, tel,
-    `Resco Mail hesabiniz hazir. Giris: webmail.rescopos.com - bilgileriniz: ${link} (1 saat gecerli)`);
+  const sonuc = await sms_yolla('hesap_bilgisi', eposta.toLowerCase(), tel,
+    `Resco Mail hesabiniz hazir. Giris: webmail.rescopos.com - bilgileriniz: ${link} (1 saat gecerli)`,
+    'hesap bilgilendirme baglantisi');
   if (!sonuc.ok) return res.status(502).json({ hata: 'SMS gonderilemedi: ' + sonuc.hata });
   await db.kayit(req.yonetici, 'bilgi_gonder', eposta.toLowerCase(), { parola_dahil: !!parola });
   res.json({ tamam: true });
@@ -434,7 +453,8 @@ app.post('/api/kapi/kod', kapi_hiz, async (req, res) => {
     `INSERT INTO kapi_kodlari (eposta, kod_hash, bitis, deneme) VALUES ($1,$2, now()+interval '5 minutes',0)
      ON CONFLICT (eposta) DO UPDATE SET kod_hash=$2, bitis=now()+interval '5 minutes', deneme=0`,
     [eposta, crypto.createHash('sha256').update(kod).digest('hex')]);
-  const sonuc = await netgsm.sms_gonder(kimlik, tel, `Resco Mail giris kodunuz: ${kod}`);
+  const sonuc = await sms_yolla('webmail_kodu', eposta, tel,
+    `Resco Mail giris kodunuz: ${kod}`, 'webmail giris kodu');
   if (!sonuc.ok) return res.status(502).json({ hata: 'SMS gönderilemedi' });
   await kapi_kayit(eposta, 'kod_gonderildi', ip);
   res.json({ tamam: true, maske: netgsm.telefon_maske(tel) });
@@ -474,6 +494,37 @@ app.post('/api/kapi/dogrula', kapi_hiz, async (req, res) => {
     `${c.split(';')[0].trim()}; Domain=${alan}; Path=/; Secure; SameSite=Lax${/httponly/i.test(c) ? '; HttpOnly' : ''}`));
   await kapi_kayit(eposta, 'giris', ip);
   res.json({ tamam: true, hedef: kopru.hedef });
+});
+
+// --- SMS kayitlari: gonderildi mi, NetGSM ne dedi, ulasti mi ---
+app.get('/api/sms-kayitlari', oturum_gerekli, async (_req, res) => {
+  const { rows } = await db.pg.query(
+    `SELECT id, tur, eposta, telefon, ozet, sonuc, kod, hata, jobid, teslim, teslim_ts, ts
+     FROM sms_kayitlari ORDER BY id DESC LIMIT 200`);
+  res.json(rows);
+});
+
+// NetGSM'e sor: gonderilen mesajlar aliciya ulasti mi (jobid uzerinden)
+app.post('/api/sms-kayitlari/durum', oturum_gerekli, async (_req, res) => {
+  const netgsm = require('./lib/netgsm');
+  const kimlik = await netgsm_kimlik();
+  if (!kimlik) return res.status(400).json({ hata: 'NetGSM bilgileri tanimli degil' });
+  const { rows } = await db.pg.query(
+    `SELECT id, jobid FROM sms_kayitlari
+     WHERE sonuc='gonderildi' AND jobid IS NOT NULL AND jobid <> ''
+       AND (teslim IS NULL OR teslim IN ('bekliyor','bilinmiyor'))
+       AND ts > now() - interval '7 days'
+     ORDER BY id DESC LIMIT 40`);
+  let sorulan = 0, guncellenen = 0;
+  for (const k of rows) {
+    sorulan++;
+    const r = await netgsm.teslim_sorgula(kimlik, k.jobid);
+    if (!r.ok) continue;
+    await db.pg.query('UPDATE sms_kayitlari SET teslim=$1, teslim_ts=now() WHERE id=$2', [r.teslim, k.id]);
+    guncellenen++;
+  }
+  await db.kayit(_req.yonetici, 'sms_durum_sorgu', null, { sorulan, guncellenen });
+  res.json({ tamam: true, sorulan, guncellenen });
 });
 
 // --- islem kaydi ---
