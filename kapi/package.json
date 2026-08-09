@@ -1,0 +1,12 @@
+{
+  "name": "rescomail-kapi",
+  "version": "0.1.0",
+  "description": "Resco Mail Kapi — webmail'e e-posta + SMS OTP ile parolasiz giris",
+  "main": "app.js",
+  "scripts": { "start": "node app.js" },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  }
+}

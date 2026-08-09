@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Resco Mail">
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#33424F" stroke-width="7">
+      <rect x="12" y="28" width="76" height="54" rx="8"/>
+      <path d="M 18,35 L 50,61 L 82,35"/>
+    </g>
+    <path d="M 55,56 L 68,70 L 94,38" stroke="#1E88E5" stroke-width="10"/>
+  </g>
+</svg>
