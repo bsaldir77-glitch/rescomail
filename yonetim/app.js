@@ -358,7 +358,7 @@ app.post('/api/kapi/kod', kapi_hiz, async (req, res) => {
   const tel = rows.length && rows[0].sms_giris_acik ? netgsm.telefon_tr(rows[0].telefon) : null;
   if (!tel) {
     await kapi_kayit(eposta, 'sms_kapali', ip);
-    return res.status(400).json({ hata: 'Bu adres için SMS ile giriş tanımlı değil — parolanızla girin' });
+    return res.status(400).json({ hata: 'Bu hesapta SMS ile giriş açık değil — yöneticinize başvurun' });
   }
   const eski = await db.pg.query('SELECT bitis FROM kapi_kodlari WHERE eposta=$1', [eposta]);
   if (eski.rows.length && new Date(eski.rows[0].bitis).getTime() - Date.now() > 4 * 60 * 1000)

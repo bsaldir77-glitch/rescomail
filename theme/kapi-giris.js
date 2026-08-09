@@ -48,9 +48,9 @@
     kutu.id = 'resco-kapi';
 
     var baslik = el('div', 'font-size:15px;font-weight:600;color:#33424F;margin-bottom:4px');
-    baslik.textContent = 'SMS ile giriş';
+    baslik.textContent = 'Resco Mail girişi';
     var alt = el('div', 'font-size:12.5px;color:#5b6b78;margin-bottom:12px');
-    alt.textContent = 'Parola girmeden, telefonunuza gelen kodla girin.';
+    alt.textContent = 'E-posta adresinizi yazın, telefonunuza gelen kodla girin.';
 
     var gStil = 'width:100%;padding:11px 12px;border:1px solid ' + KENAR +
       ';border-radius:8px;font-size:14px;margin-bottom:10px;box-sizing:border-box';
@@ -93,29 +93,15 @@
 
     [baslik, alt, eposta, kod, btn, durum].forEach(function (c) { kutu.appendChild(c); });
 
-    // Klasik giris (kullanici adi + parola + dil secici) varsayilan olarak GIZLI —
-    // ama kaldirilmaz: SMS girisi acik olmayan hesaplar buradan girebilmeli.
-    var gizlenen = [form];
+    // Bulent karari (2026-08-09): webmail girisi YALNIZ SMS ile. Klasik giris (kullanici adi +
+    // parola + dil secici) sayfadan tamamen kaldirilir; hesabi acmak yoneticinin elindedir.
+    form.parentNode.insertBefore(kutu, form);
+    form.style.display = 'none';
     var secici = document.querySelector('md-select, select');
     if (secici && !form.contains(secici)) {
-      // Secicinin sarmalayicisi tum giris kartini kapsiyorsa (kutumuz dahil) yalniz seciciyi gizle
       var kap = secici.closest('div') || secici;
-      gizlenen.push(kap.contains(form) ? secici : kap);
+      (kap.contains(form) ? secici : kap).style.display = 'none';
     }
-    gizlenen.forEach(function (g) { g.style.display = 'none'; });
-
-    var bag = el('a', 'display:block;text-align:center;color:#5b6b78;font-size:12.5px;' +
-      'margin:2px 0 10px;cursor:pointer;text-decoration:underline;font-family:"Segoe UI",sans-serif',
-      { href: '#', textContent: 'Parola ile giriş yapmak istiyorum' });
-    bag.addEventListener('click', function (ev) {
-      ev.preventDefault();
-      var acik = gizlenen[0].style.display !== 'none';
-      gizlenen.forEach(function (g) { g.style.display = acik ? 'none' : ''; });
-      bag.textContent = acik ? 'Parola ile giriş yapmak istiyorum' : 'Parola girişini gizle';
-    });
-
-    form.parentNode.insertBefore(kutu, form);
-    form.parentNode.insertBefore(bag, form);
     return true;
   }
 
