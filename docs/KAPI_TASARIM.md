@@ -43,8 +43,11 @@ deploy/parola-koprusu.sh (root)                              ← parola panele H
 - Giriş kutusu: `deploy/apply.sh` → `theme/theme.js` + `theme/kapi-giris.js` birleşip SOGo'ya iner.
 - Kullanıcı açma: panel → OTP Ayarları → telefon + "SMS ile giriş" anahtarı.
 
-## 4. Kullanılmayan dosyalar (silme onayı bekliyor)
+## 4. Kullanılmayan dosyalar
 
 Tek-adres kararından önce yazılan ayrı Kapı uygulaması **kullanılmıyor**: `kapi/` klasörü ve
-`deploy/kapi-kurulum.sh`, `deploy/eposta-vhost.conf`. Aynı şekilde pilot için açılan **`giris.saldir.tr`**
-alt alan adı da gereksiz kaldı. Bülent onay verirse temizlenecek.
+`deploy/kapi-kurulum.sh`, `deploy/eposta-vhost.conf` (silme onayı bekliyor).
+
+**Ders (2026-08-09):** Pilot için `giris.saldir.tr` alt alan adı **sorulmadan oluşturuldu**; tek-adres
+kararıyla gereksiz kaldı ve Bülent'in talimatıyla silindi. Kural: **prod'da yeni alan adı/kaynak
+oluşturmadan önce onay alınır** — geri alınabilir olması gerekçe değildir.
