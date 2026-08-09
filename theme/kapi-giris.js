@@ -93,11 +93,29 @@
 
     [baslik, alt, eposta, kod, btn, durum].forEach(function (c) { kutu.appendChild(c); });
 
-    var ayrac = el('div', 'text-align:center;color:#90A4AE;font-size:12px;margin:0 0 14px');
-    ayrac.textContent = '— veya parolanızla —';
+    // Klasik giris (kullanici adi + parola + dil secici) varsayilan olarak GIZLI —
+    // ama kaldirilmaz: SMS girisi acik olmayan hesaplar buradan girebilmeli.
+    var gizlenen = [form];
+    var secici = document.querySelector('md-select, select');
+    if (secici && !form.contains(secici)) {
+      // Secicinin sarmalayicisi tum giris kartini kapsiyorsa (kutumuz dahil) yalniz seciciyi gizle
+      var kap = secici.closest('div') || secici;
+      gizlenen.push(kap.contains(form) ? secici : kap);
+    }
+    gizlenen.forEach(function (g) { g.style.display = 'none'; });
+
+    var bag = el('a', 'display:block;text-align:center;color:#5b6b78;font-size:12.5px;' +
+      'margin:2px 0 10px;cursor:pointer;text-decoration:underline;font-family:"Segoe UI",sans-serif',
+      { href: '#', textContent: 'Parola ile giriş yapmak istiyorum' });
+    bag.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      var acik = gizlenen[0].style.display !== 'none';
+      gizlenen.forEach(function (g) { g.style.display = acik ? 'none' : ''; });
+      bag.textContent = acik ? 'Parola ile giriş yapmak istiyorum' : 'Parola girişini gizle';
+    });
 
     form.parentNode.insertBefore(kutu, form);
-    form.parentNode.insertBefore(ayrac, form);
+    form.parentNode.insertBefore(bag, form);
     return true;
   }
 
