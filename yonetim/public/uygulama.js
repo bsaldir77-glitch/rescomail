@@ -58,9 +58,28 @@ function panel_ac() {
 document.querySelectorAll('.yanmenu div').forEach(el => el.addEventListener('click', () => {
   document.querySelectorAll('.yanmenu div').forEach(d => d.classList.remove('sec'));
   el.classList.add('sec');
-  ['hesaplar', 'otp', 'kayitlar'].forEach(s => $('#sekme-' + s).classList.toggle('gizli', s !== el.dataset.sekme));
+  ['hesaplar', 'otp', 'baglantilar', 'kayitlar'].forEach(s => $('#sekme-' + s).classList.toggle('gizli', s !== el.dataset.sekme));
   if (el.dataset.sekme === 'kayitlar') kayitlari_ciz();
+  if (el.dataset.sekme === 'baglantilar') baglantilari_ciz();
 }));
+
+// --- baglantilar (sifreli kasa) ---
+async function baglantilari_ciz() {
+  const liste = await api('/api/baglantilar').catch(() => []);
+  const n = liste.find(b => b.saglayici === 'netgsm');
+  $('#b-kullanici').value = n && n.alanlar.kullanici ? n.alanlar.kullanici : '';
+  $('#b-parola').value = n && n.alanlar.parola ? n.alanlar.parola : '';
+  $('#b-baslik').value = n && n.alanlar.baslik ? n.alanlar.baslik : '';
+  $('#b-durum').textContent = n ? ' Kayıtlı (maskeli gösteriliyor)' : ' Henüz kayıt yok';
+}
+$('#b-kaydet').addEventListener('click', async () => {
+  try {
+    await api('/api/baglantilar', { saglayici: 'netgsm', alanlar: {
+      kullanici: $('#b-kullanici').value, parola: $('#b-parola').value, baslik: $('#b-baslik').value } });
+    $('#b-durum').textContent = ' Kaydedildi ✔';
+    await baglantilari_ciz();
+  } catch (e) { $('#b-durum').textContent = ' Hata: ' + e.message; }
+});
 
 // --- hesaplar ---
 function domainleri_doldur() {

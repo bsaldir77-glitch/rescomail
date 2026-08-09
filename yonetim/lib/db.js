@@ -31,6 +31,10 @@ async function sema() {
     telefon TEXT,
     sms_giris_acik BOOLEAN NOT NULL DEFAULT false,
     guncelleme TIMESTAMPTZ NOT NULL DEFAULT now())`);
+  await pg.query(`CREATE TABLE IF NOT EXISTS baglanti_ayarlari (
+    saglayici TEXT PRIMARY KEY,
+    veri_sifreli TEXT NOT NULL,
+    guncelleme TIMESTAMPTZ NOT NULL DEFAULT now())`);
   await pg.query(`CREATE TABLE IF NOT EXISTS islem_kayitlari (
     id SERIAL PRIMARY KEY,
     yonetici TEXT NOT NULL,

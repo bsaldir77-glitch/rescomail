@@ -29,6 +29,7 @@
     <div class="yanmenu">
       <div data-sekme="hesaplar" class="sec">📬 Hesaplar</div>
       <div data-sekme="otp">📱 OTP Ayarları</div>
+      <div data-sekme="baglantilar">🔌 Bağlantılar</div>
       <div data-sekme="kayitlar">📜 İşlem Kaydı</div>
     </div>
     <div class="ana">
@@ -50,6 +51,18 @@
           <thead><tr><th>Hesap</th><th>Telefon</th><th>SMS ile giriş (V2'de aktifleşir)</th></tr></thead>
           <tbody></tbody>
         </table>
+      </div>
+
+      <div id="sekme-baglantilar" class="gizli">
+        <div class="baglanti-kart">
+          <h4>NetGSM (SMS gönderimi — V2 Kapı bunu kullanacak)</h4>
+          <p class="kucuknot">Değerler AES-256 ile şifreli saklanır; kayıttan sonra maskeli görünür. Yalnız değiştirdiğin alan güncellenir.</p>
+          <label for="b-kullanici">Kullanıcı adı / No</label><input id="b-kullanici" autocomplete="off">
+          <label for="b-parola">Parola</label><input id="b-parola" type="password" autocomplete="new-password">
+          <label for="b-baslik">Gönderici başlığı</label><input id="b-baslik" autocomplete="off">
+          <button id="b-kaydet" class="btn" type="button">Kaydet</button>
+          <span id="b-durum" class="kucuknot"></span>
+        </div>
       </div>
 
       <div id="sekme-kayitlar" class="gizli">

@@ -61,6 +61,10 @@ EOF
   echo "[ok] .env yazildi (sirlar YALNIZ sunucuda, repoya girmez)"
 fi
 
+# 6b) baglanti kasasi anahtari — .env'e yoksa ekle (mevcut kuruluma sonradan eklendi)
+grep -q '^BAGLANTI_KEY=' "$ENVD" 2>/dev/null || \
+  { echo "BAGLANTI_KEY=$(openssl rand -hex 32)" >> "$ENVD"; echo "[ok] BAGLANTI_KEY eklendi"; }
+
 # 7) sahiplik + izin
 SAHIP=$(stat -c %U /var/www/vhosts/rescopos.com)
 chown -R "$SAHIP:psacln" "$KLON"

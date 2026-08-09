@@ -124,6 +124,42 @@ app.post('/api/otp', oturum_gerekli, async (req, res) => {
   res.json({ tamam: true });
 });
 
+// --- baglanti kasasi (sifreli API kimlikleri — NetGSM vb.) ---
+const kasa = require('./lib/kasa');
+
+app.get('/api/baglantilar', oturum_gerekli, async (_req, res) => {
+  const { rows } = await db.pg.query('SELECT saglayici, veri_sifreli, guncelleme FROM baglanti_ayarlari');
+  res.json(rows.map(r => {
+    let alanlar = {};
+    try {
+      const acik = kasa.coz(r.veri_sifreli) || {};
+      for (const [k, v] of Object.entries(acik)) alanlar[k] = kasa.maskele(v);
+    } catch { alanlar = { hata: 'cozulemedi' }; }
+    return { saglayici: r.saglayici, alanlar, guncelleme: r.guncelleme };
+  }));
+});
+
+app.post('/api/baglantilar', oturum_gerekli, async (req, res) => {
+  const { saglayici, alanlar } = req.body || {};
+  if (!saglayici || typeof alanlar !== 'object')
+    return res.status(400).json({ hata: 'saglayici ve alanlar gerekli' });
+  // maskeli ("***" ile biten) degerler eski degeri korur — yalniz degisen alan guncellenir
+  const { rows } = await db.pg.query('SELECT veri_sifreli FROM baglanti_ayarlari WHERE saglayici=$1', [saglayici]);
+  let eski = {};
+  if (rows.length) { try { eski = kasa.coz(rows[0].veri_sifreli) || {}; } catch { eski = {}; } }
+  const yeni = { ...eski };
+  for (const [k, v] of Object.entries(alanlar)) {
+    if (typeof v === 'string' && v.endsWith('***')) continue;
+    if (v === '' || v === null) delete yeni[k]; else yeni[k] = v;
+  }
+  await db.pg.query(
+    `INSERT INTO baglanti_ayarlari (saglayici, veri_sifreli) VALUES ($1,$2)
+     ON CONFLICT (saglayici) DO UPDATE SET veri_sifreli=$2, guncelleme=now()`,
+    [saglayici, kasa.sifrele(yeni)]);
+  await db.kayit(req.yonetici, 'baglanti_guncelle', saglayici, { alanlar: Object.keys(yeni) }); // degerler ASLA loglanmaz
+  res.json({ tamam: true });
+});
+
 // --- islem kaydi ---
 app.get('/api/kayitlar', oturum_gerekli, async (_req, res) => {
   const { rows } = await db.pg.query(
