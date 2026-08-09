@@ -26,9 +26,21 @@
     });
   }
 
+  // Giris formu: parola alani + kullanici adi alani birlikte olan form (posta kutusundaki
+  // "parola degistir" penceresinde kullanici adi alani yoktur → oraya kutu eklenmez).
+  function girisFormu() {
+    var formlar = Array.prototype.slice.call(document.querySelectorAll('form'));
+    for (var i = 0; i < formlar.length; i++) {
+      var f = formlar[i];
+      if (f.querySelector('input[type="password"]') &&
+          f.querySelector('input[type="text"], input[type="email"], input:not([type])')) return f;
+    }
+    return null;
+  }
+
   function kur() {
     if (document.getElementById('resco-kapi')) return true;
-    var form = document.querySelector('form');
+    var form = girisFormu();
     if (!form) return false;
 
     var kutu = el('div', 'margin:0 0 18px;padding:16px;border:1px solid ' + KENAR +
@@ -89,15 +101,17 @@
     return true;
   }
 
-  function bekle() {
-    if (kur()) return;
-    var kalan = 40; // ~10 sn: Angular giris formunu olusturana kadar
-    var t = setInterval(function () { if (kur() || --kalan <= 0) clearInterval(t); }, 250);
+  // SOGo tek sayfalik uygulama: cikista/oturum bitiminde giris ekrani YENIDEN cizilir ve
+  // kutumuz DOM'dan silinir. Bu yuzden surekli izleyip her belirdiginde tekrar ekliyoruz.
+  function izle() {
+    kur();
+    var bekleyen = null;
+    new MutationObserver(function () {
+      if (bekleyen) return;
+      bekleyen = setTimeout(function () { bekleyen = null; kur(); }, 120);
+    }).observe(document.documentElement, { childList: true, subtree: true });
   }
 
-  if (/^\/SOGo\/?$/.test(location.pathname) || document.getElementById('SOGoLogin') ||
-      /SOGo/.test(location.pathname)) {
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bekle);
-    else bekle();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', izle);
+  else izle();
 })();
