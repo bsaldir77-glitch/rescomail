@@ -2,12 +2,12 @@
 // Yerel 8443 self-signed sertifika kullanir; anahtar .env'de (PLESK_API_KEY), repoya girmez.
 const https = require('https');
 
-function cli_cagir(params) {
+function cli_cagir(params, arac) {
   const govde = JSON.stringify({ params });
   const secenek = {
     host: '127.0.0.1',
     port: 8443,
-    path: '/api/v2/cli/mail/call',
+    path: `/api/v2/cli/${arac || 'mail'}/call`,
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -46,7 +46,15 @@ const hesap_kapat = eposta => cli_cagir(['--off', eposta]);
 const hesap_ac_durum = eposta => cli_cagir(['--on', eposta]);
 const hesap_sil = eposta => cli_cagir(['--remove', eposta]);
 
+// Sunucudaki TUM domainler (hesabi olmayanlar dahil) — yeni hesap acarken liste eksik kalmasin
+const domain_listesi = async () => {
+  const c = await cli_cagir(['--list'], 'domain');
+  return String(c.stdout || '').split('\n').map(s => s.trim())
+    .filter(s => /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(s));
+};
+
 const bilgi = eposta => cli_cagir(['--info', eposta]);
 const guncelle = (eposta, ekler) => cli_cagir(['--update', eposta].concat(ekler));
 
-module.exports = { hesap_ac, parola_degistir, hesap_kapat, hesap_ac_durum, hesap_sil, bilgi, guncelle };
+module.exports = { hesap_ac, parola_degistir, hesap_kapat, hesap_ac_durum, hesap_sil,
+  bilgi, guncelle, domain_listesi };

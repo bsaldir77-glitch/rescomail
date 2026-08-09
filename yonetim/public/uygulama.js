@@ -200,23 +200,41 @@ $('#m-tamam').addEventListener('click', async () => {
   try { await modal_tamam(); } catch (e) { alert(e.message); }
 });
 
-$('#yeni-btn').addEventListener('click', () => {
-  const dler = [...new Set(hesaplar.map(h => h.domain))].sort();
+$('#yeni-btn').addEventListener('click', async () => {
+  // Sunucudaki TUM domainler (hesabi olmayanlar dahil); alinamazsa mevcutlardan turet
+  let dler = await api('/api/domainler').catch(() => null);
+  if (!Array.isArray(dler) || !dler.length) dler = [...new Set(hesaplar.map(h => h.domain))];
+  dler = dler.sort();
+  const filtre = secili_domain('#f-domain');   // listede hangi domain sectiysen o gelsin
   modal_ac('Yeni Posta Hesabı', `
     <div class="satir">
       <div><label>Kullanıcı</label><input id="m-kullanici" placeholder="ör. destek"></div>
-      <div><label>Domain</label><select id="m-domain">${dler.map(d => `<option>${kacir(d)}</option>`).join('')}</select></div>
+      <div><label>Domain</label><select id="m-domain">
+        <option value="">— domain seçin —</option>
+        ${dler.map(d => `<option${d === filtre ? ' selected' : ''}>${kacir(d)}</option>`).join('')}
+      </select></div>
     </div>
+    <p class="kucuknot">Açılacak adres: <b id="m-onizleme">—</b></p>
     <label>Parola (boş bırak = otomatik güçlü üret)</label><input id="m-parola" placeholder="otomatik">
     <label>OTP doğrulama telefonu (isteğe bağlı)</label><input id="m-telefon" placeholder="kişi bildiği gibi girer">`,
     'Hesabı Aç', async () => {
+      const kullanici = $('#m-kullanici').value.trim(), domain = $('#m-domain').value;
+      if (!kullanici || !domain) throw new Error('Kullanıcı adı ve domain seçilmeli');
       const s = await api('/api/hesaplar', {
-        kullanici: $('#m-kullanici').value.trim(), domain: $('#m-domain').value,
+        kullanici, domain,
         parola: $('#m-parola').value || undefined, telefon: $('#m-telefon').value
       });
       parola_goster(`${s.eposta} açıldı`, s.parola, s.eposta);
       await yenile();
     });
+  // Yanlis domain'e hesap acilmasin: adres canli gosterilir
+  const onizle = () => {
+    const k = $('#m-kullanici').value.trim(), d = $('#m-domain').value;
+    $('#m-onizleme').textContent = (k && d) ? `${k}@${d}` : '—';
+  };
+  $('#m-kullanici').addEventListener('input', onizle);
+  $('#m-domain').addEventListener('change', onizle);
+  onizle();
 });
 
 function parola_goster(baslik, parola, eposta) {
@@ -304,9 +322,12 @@ document.addEventListener('click', async e => {
   if (b.dataset.is === 'sil') {
     modal_ac('Hesabı SİL', `
       <p><b>${kacir(eposta)}</b> ve TÜM POSTALARI kalıcı silinir. Geri dönüşü yok.</p>
-      <label>Onay için adresi aynen yaz:</label><input id="m-onay" placeholder="${kacir(eposta)}">`,
+      <label style="display:flex;gap:8px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="m-onay" style="width:auto">
+        <span>Evet, bu hesabı ve postalarını kalıcı siliyorum</span></label>`,
       'Kalıcı Sil', async () => {
-        await api('/api/hesaplar/sil', { eposta, onay: $('#m-onay').value.trim() });
+        if (!$('#m-onay').checked) throw new Error('Silmek için onay kutusunu işaretle');
+        await api('/api/hesaplar/sil', { eposta, onay: eposta });
         modal_kapat(); await yenile();
       });
   }

@@ -11,6 +11,17 @@ if (!process.env.OTURUM_SECRET || process.env.OTURUM_SECRET.length < 32)
   throw new Error('OTURUM_SECRET en az 32 karakter olmali');
 
 const app = express();
+
+// Express 4 tuzagi: async isleyicideki hata (orn. Plesk "hesap yok" der) hata yakalayiciya
+// ULASMAZ → istek asili kalir, Passenger 502 doner. Isleyicileri sararak hatayi next()'e tasiyoruz.
+['get', 'post', 'put', 'delete'].forEach(yontem => {
+  const asil = app[yontem].bind(app);
+  app[yontem] = (yol, ...isleyiciler) => asil(yol, ...isleyiciler.map(f =>
+    (typeof f === 'function' && f.length < 4)
+      ? (req, res, next) => Promise.resolve(f(req, res, next)).catch(next)
+      : f));
+});
+
 app.use(express.json());
 app.use(express.static(__dirname + '/public'));
 
@@ -137,6 +148,11 @@ app.post('/api/yonetici', oturum_gerekli, async (req, res) => {
 app.post('/api/cikis', oturum_gerekli, (_req, res) => {
   res.setHeader('Set-Cookie', 'rm_oturum=; HttpOnly; Secure; Path=/; Max-Age=0');
   res.json({ tamam: true });
+});
+
+// Sunucudaki tum domainler — yeni hesap acilirken hesabi olmayan domainler de secilebilsin
+app.get('/api/domainler', oturum_gerekli, async (_req, res) => {
+  res.json(await plesk.domain_listesi());
 });
 
 // --- hesaplar ---
@@ -474,7 +490,11 @@ app.get('/api/kayitlar', oturum_gerekli, async (_req, res) => {
 
 app.use((err, _req, res, _next) => {
   console.error('[yonetim]', err.message);
-  res.status(500).json({ hata: err.message });
+  const m = String(err.message || '');
+  // Plesk'in ham ciktisini kullaniciya okunur cevir
+  if (/does not exist/i.test(m)) return res.status(404).json({ hata: 'Bu hesap sunucuda bulunamadı (zaten silinmiş olabilir)' });
+  if (/already exists/i.test(m)) return res.status(409).json({ hata: 'Bu adres zaten var' });
+  res.status(500).json({ hata: m.slice(0, 300) });
 });
 
 const PORT = process.env.PORT || 3000;
