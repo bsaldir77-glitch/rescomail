@@ -255,6 +255,68 @@ app.post('/api/baglantilar/test', oturum_gerekli, async (req, res) => {
   res.json({ tamam: true, jobid: sonuc.jobid });
 });
 
+// --- hesap bilgi paketi: SMS'te bilgi YOK, yalniz yonlendirme; bilgi 1 saat yasayan sifreli sayfada ---
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function bilgi_sayfasi(baslik, govde) {
+  return `<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<title>${esc(baslik)}</title>
+<style>body{margin:0;font-family:"Segoe UI",sans-serif;background:linear-gradient(160deg,#2C3E50,#1E88E5);
+min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.kart{background:#fff;max-width:420px;width:100%;border-radius:14px;padding:32px;color:#33424F}
+.kart img{width:170px;display:block;margin:0 auto 10px}h2{font-size:18px;text-align:center;margin:6px 0 18px}
+.satir{margin:12px 0}.satir b{display:block;font-size:12.5px;color:#5b6b78;text-transform:uppercase;letter-spacing:.4px}
+.satir span,.satir a{font-size:16px;word-break:break-all}.parola{font-family:Consolas,monospace;background:#F4F7FA;
+border:1px dashed #DDE6EE;padding:10px;border-radius:8px;text-align:center;font-size:17px;-webkit-user-select:all;user-select:all}
+.not{font-size:12.5px;color:#5b6b78;margin-top:18px;text-align:center}</style></head>
+<body><div class="kart"><img src="/logo.svg" alt="Resco Mail"><h2>${esc(baslik)}</h2>${govde}</div></body></html>`;
+}
+
+app.post('/api/hesaplar/bilgi', oturum_gerekli, async (req, res) => {
+  const netgsm = require('./lib/netgsm');
+  const { eposta, parola } = req.body || {};
+  if (!eposta_gecerli(eposta)) return res.status(400).json({ hata: 'Gecersiz adres' });
+  const { rows } = await db.pg.query('SELECT telefon FROM otp_ayarlari WHERE eposta=$1', [eposta.toLowerCase()]);
+  const tel = rows.length ? netgsm.telefon_tr(rows[0].telefon) : null;
+  if (!tel) return res.status(400).json({ hata: 'Bu hesabin OTP telefonu tanimli degil — once OTP Ayarlari\'ndan ekle' });
+  const kimlik = await netgsm_kimlik();
+  if (!kimlik) return res.status(400).json({ hata: 'Once NetGSM bilgilerini kaydet' });
+  await db.pg.query('DELETE FROM bilgi_paketleri WHERE bitis < now()'); // suresi gecenleri temizle
+  const token = crypto.randomBytes(16).toString('hex');
+  const icerik = { eposta: eposta.toLowerCase(), webmail: `https://webmail.${eposta.split('@')[1]}/`, telefon: '0' + tel };
+  if (parola) icerik.parola = parola;
+  await db.pg.query(
+    `INSERT INTO bilgi_paketleri (token, eposta, icerik_sifreli, bitis) VALUES ($1,$2,$3, now()+interval '1 hour')`,
+    [token, eposta.toLowerCase(), kasa.sifrele(icerik)]);
+  const link = `https://mailprovider.rescopos.com/bilgi/${token}`;
+  const sonuc = await netgsm.sms_gonder(kimlik, tel, `Resco Mail hesap bilgilendirmeniz: ${link} (baglanti 1 saat gecerlidir)`);
+  if (!sonuc.ok) return res.status(502).json({ hata: 'SMS gonderilemedi: ' + sonuc.hata });
+  await db.kayit(req.yonetici, 'bilgi_gonder', eposta.toLowerCase(), { parola_dahil: !!parola });
+  res.json({ tamam: true });
+});
+
+app.get('/bilgi/:token', async (req, res) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  res.setHeader('Cache-Control', 'no-store');
+  const dolmus = () => res.status(410).send(bilgi_sayfasi('Bağlantının süresi doldu',
+    '<p style="text-align:center">Bu bilgilendirme sayfası artık geçerli değil.<br>Yöneticinizden yenisini isteyin.</p>'));
+  const { rows } = await db.pg.query(
+    'SELECT icerik_sifreli, bitis FROM bilgi_paketleri WHERE token=$1 AND bitis > now()', [req.params.token]);
+  if (!rows.length) return dolmus();
+  let ic; try { ic = kasa.coz(rows[0].icerik_sifreli); } catch { return dolmus(); }
+  const bitis = new Date(rows[0].bitis).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' });
+  let govde = `
+    <div class="satir"><b>Webmail adresiniz</b><a href="${esc(ic.webmail)}">${esc(ic.webmail)}</a></div>
+    <div class="satir"><b>E-posta adresiniz</b><span>${esc(ic.eposta)}</span></div>
+    <div class="satir"><b>Doğrulama telefonunuz</b><span>${esc(ic.telefon)}</span></div>`;
+  if (ic.parola) govde += `
+    <div class="satir"><b>Geçici parolanız</b><div class="parola">${esc(ic.parola)}</div></div>
+    <p class="not">İlk girişten sonra parolanızı değiştirmenizi öneririz.</p>`;
+  govde += `<p class="not">Bu sayfa saat ${esc(bitis)}'e kadar görüntülenebilir, sonra kendini imha eder.</p>`;
+  res.send(bilgi_sayfasi('Resco Mail hesabınız', govde));
+});
+
 // --- islem kaydi ---
 app.get('/api/kayitlar', oturum_gerekli, async (_req, res) => {
   const { rows } = await db.pg.query(

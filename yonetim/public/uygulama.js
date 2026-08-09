@@ -144,6 +144,7 @@ function hesaplari_ciz() {
       <td>${h.otp && h.otp.telefon ? kacir(h.otp.telefon) : '<span class="kucuknot">tanımsız</span>'}</td>
       <td class="islem">
         <button class="btn kucuk ikincil" data-is="sifre" data-e="${kacir(h.eposta)}">Şifre Sıfırla</button>
+        <button class="btn kucuk ikincil" data-is="bilgi" data-e="${kacir(h.eposta)}">Bilgi Gönder</button>
         <button class="btn kucuk tehlike" data-is="sil" data-e="${kacir(h.eposta)}">Sil</button>
       </td></tr>`).join('');
   $('#t-hesaplar tbody').innerHTML = satirlar || '<tr><td colspan="4">Kayıt yok</td></tr>';
@@ -187,16 +188,28 @@ $('#yeni-btn').addEventListener('click', () => {
         kullanici: $('#m-kullanici').value.trim(), domain: $('#m-domain').value,
         parola: $('#m-parola').value || undefined, telefon: $('#m-telefon').value
       });
-      parola_goster(`${s.eposta} açıldı`, s.parola);
+      parola_goster(`${s.eposta} açıldı`, s.parola, s.eposta);
       await yenile();
     });
 });
 
-function parola_goster(baslik, parola) {
+function parola_goster(baslik, parola, eposta) {
   modal_ac(baslik, `
     <p class="kucuknot">Parola YALNIZ ŞİMDİ görünür, kaydedilmez — kopyala ve sahibine ilet:</p>
-    <div class="parola-goster">${kacir(parola)}</div>`, 'Kapat', async () => modal_kapat());
+    <div class="parola-goster">${kacir(parola)}</div>
+    <button class="btn ikincil" type="button" id="pg-sms" data-e="${kacir(eposta)}" data-p="${kacir(parola)}"
+      style="margin-top:12px">📲 Bilgi sayfası + SMS gönder (parola dahil)</button>
+    <span id="pg-sms-durum" class="kucuknot"></span>`, 'Kapat', async () => modal_kapat());
 }
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('#pg-sms'); if (!b) return;
+  $('#pg-sms-durum').textContent = ' Gönderiliyor...';
+  try {
+    await api('/api/hesaplar/bilgi', { eposta: b.dataset.e, parola: b.dataset.p });
+    $('#pg-sms-durum').textContent = ' SMS gönderildi ✔ (sayfa 1 saat geçerli)';
+  } catch (x) { $('#pg-sms-durum').textContent = ' Hata: ' + x.message; }
+});
 
 document.addEventListener('click', async e => {
   const b = e.target.closest('button[data-is]'); if (!b) return;
@@ -205,7 +218,17 @@ document.addEventListener('click', async e => {
     modal_ac('Şifre Sıfırla', `<p><b>${kacir(eposta)}</b> için yeni parola üretilecek. Eski parola geçersiz olur.</p>`,
       'Sıfırla', async () => {
         const s = await api('/api/hesaplar/sifre', { eposta });
-        parola_goster('Yeni parola', s.parola);
+        parola_goster('Yeni parola', s.parola, eposta);
+      });
+  }
+  if (b.dataset.is === 'bilgi') {
+    modal_ac('Hesap Bilgisi Gönder', `
+      <p><b>${kacir(eposta)}</b> için 1 saat geçerli bilgi sayfası oluşturulacak, OTP telefonuna yalnız
+      <b>bağlantı</b> SMS'lenecek (SMS'te bilgi yok). Sayfada: webmail adresi, e-posta, doğrulama telefonu.</p>
+      <p class="kucuknot">Parola bu sayfaya EKLENMEZ — parola yalnız hesap açma / şifre sıfırlama anında gönderilebilir.</p>`,
+      'Gönder', async () => {
+        await api('/api/hesaplar/bilgi', { eposta });
+        modal_kapat();
       });
   }
   if (b.dataset.is === 'sil') {
