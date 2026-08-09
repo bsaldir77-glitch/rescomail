@@ -10,10 +10,10 @@ CONF=/etc/sogo/sogo.conf
 
 keep_orig() { if [ -f "$1" ] && [ ! -f "$1.bak_orig" ]; then cp -p "$1" "$1.bak_orig"; fi; }
 
-# 1) Tema paleti
+# 1) Tema paleti + SMS ile giris eklentisi (tek dosyada birlesir → SOGo restart'i gerekmez)
 keep_orig "$WR/js/theme.js"
-cp "$REPO/theme/theme.js" "$WR/js/theme.js"
-echo "[ok] theme.js"
+cat "$REPO/theme/theme.js" "$REPO/theme/kapi-giris.js" > "$WR/js/theme.js"
+echo "[ok] theme.js (+ kapi-giris)"
 
 # 2) Logo (login + ust bar)
 keep_orig "$WR/img/sogo-full.svg"

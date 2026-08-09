@@ -1,6 +1,6 @@
 # CLAUDE.md — rescomail (Resco Mail)
 
-**Resco Mail**, SOGo üzerine kurulan white-label webmail markasıdır. Hedef: `webgiris.<domain>` adresleri açıldığında kullanıcı SOGo değil **Resco Mail** görür — Yahoo Mail'den ilhamla mor tema, Resco Mail logosu, "Resco Mail" sekme başlığı. SOGo çekirdeğine dokunulmaz; bu repo yalnız **tema + marka katmanı ve onun deploy akışıdır**.
+**Resco Mail**, SOGo üzerine kurulan white-label webmail markasıdır. Hedef: `webmail.<domain>` adresleri açıldığında kullanıcı SOGo değil **Resco Mail** görür — Yahoo Mail'den ilhamla mor tema, Resco Mail logosu, "Resco Mail" sekme başlığı. SOGo çekirdeğine dokunulmaz; bu repo yalnız **tema + marka katmanı ve onun deploy akışıdır**.
 
 ## 1. ASLA YAPMA (rescopos disiplini aynen geçerli)
 

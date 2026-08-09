@@ -70,7 +70,7 @@ app.post('/api/kod', hiz_siniri, async (req, res) => {
   if (!tel) {
     await kayit(eposta, 'sms_kapali', ip);
     return res.status(400).json({ hata: 'Bu adres için SMS ile giriş tanımlı değil — parolanızla giriş yapın',
-      parola_yolu: `https://webmail.${eposta.split('@')[1]}/SOGo/` });
+      parola_yolu: `https://${process.env.SOGO_HOST || 'webmail.rescopos.com'}/SOGo/` });
   }
   const eski = await pg.query('SELECT bitis FROM kapi_kodlari WHERE eposta=$1', [eposta]);
   if (eski.rows.length && new Date(eski.rows[0].bitis).getTime() - Date.now() > 4 * 60 * 1000)
@@ -120,12 +120,13 @@ app.post('/api/dogrula', hiz_siniri, async (req, res) => {
     return res.status(502).json({ hata: 'Posta kutusu açılamadı — yöneticinize başvurun' });
   }
 
-  // SOGo'nun cerezlerini alan adi genelinde gecerli kilarak devret (webmail.<domain> okuyabilsin)
-  const alan = '.' + eposta.split('@')[1];
+  // TEK KAPI: SOGo ayni alan adinda (eposta.rescopos.com/SOGo) → cerez host'a ozel kalir (en guvenlisi).
+  // Farkli bir SOGo adresi kullanilacaksa CEREZ_ALAN ile ust alan verilir.
+  const alan = process.env.CEREZ_ALAN ? `; Domain=${process.env.CEREZ_ALAN}` : '';
   const cerezler = kopru.cerezler.map(c => {
     const ad_deger = c.split(';')[0].trim();
     const httponly = /httponly/i.test(c) ? '; HttpOnly' : '';
-    return `${ad_deger}; Domain=${alan}; Path=/; Secure; SameSite=Lax${httponly}`;
+    return `${ad_deger}${alan}; Path=/; Secure; SameSite=Lax${httponly}`;
   });
   res.setHeader('Set-Cookie', cerezler);
   await kayit(eposta, 'giris', ip);

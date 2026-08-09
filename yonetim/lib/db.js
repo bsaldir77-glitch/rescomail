@@ -27,6 +27,17 @@ async function sema() {
     olusturma TIMESTAMPTZ NOT NULL DEFAULT now())`);
   await pg.query(`ALTER TABLE yoneticiler ADD COLUMN IF NOT EXISTS telefon TEXT`);
   await pg.query(`ALTER TABLE yoneticiler ADD COLUMN IF NOT EXISTS sms_giris BOOLEAN NOT NULL DEFAULT false`);
+  await pg.query(`CREATE TABLE IF NOT EXISTS kapi_kodlari (
+    eposta TEXT PRIMARY KEY,
+    kod_hash TEXT NOT NULL,
+    bitis TIMESTAMPTZ NOT NULL,
+    deneme INT NOT NULL DEFAULT 0)`);
+  await pg.query(`CREATE TABLE IF NOT EXISTS kapi_giris_kayitlari (
+    id SERIAL PRIMARY KEY,
+    eposta TEXT NOT NULL,
+    olay TEXT NOT NULL,
+    ip TEXT,
+    ts TIMESTAMPTZ NOT NULL DEFAULT now())`);
   await pg.query(`CREATE TABLE IF NOT EXISTS bilgi_paketleri (
     token TEXT PRIMARY KEY,
     eposta TEXT NOT NULL,

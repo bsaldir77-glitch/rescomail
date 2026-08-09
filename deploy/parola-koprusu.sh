@@ -28,20 +28,21 @@ PAROLA=$(plesk sbin mail_auth_view 2>/dev/null | awk -F'|' -v e="$EPOSTA" '
     if ($2 == e) { print $4; exit } }')
 [ -n "$PAROLA" ] || hata "hesap bulunamadi"
 
-DOMAIN="${EPOSTA#*@}"
+# TEK KAPI: hangi domain olursa olsun oturum tek SOGo adresinde acilir (hepsi ayni sogod).
+SOGO="${SOGO_HOST:-webmail.rescopos.com}"
 GOVDE=$(EP="$EPOSTA" PW="$PAROLA" python3 -c \
   'import json,os; print(json.dumps({"userName":os.environ["EP"],"password":os.environ["PW"]}))')
 
 YANIT=$(curl -sk -i -m 20 -X POST -H 'Content-Type: application/json' \
-  --data-binary "$GOVDE" "https://webmail.$DOMAIN/SOGo/connect" || true)
+  --data-binary "$GOVDE" "https://$SOGO/SOGo/connect" || true)
 
 echo "$YANIT" | grep -qi '^HTTP/[0-9.]* 200' || hata "SOGo girisi reddetti"
 CEREZLER=$(echo "$YANIT" | grep -i '^set-cookie:' | sed -E 's/^[Ss]et-[Cc]ookie:[[:space:]]*//' | tr -d '\r')
 [ -n "$CEREZLER" ] || hata "SOGo cerez dondurmedi"
 
-CEREZLER="$CEREZLER" DOMAIN="$DOMAIN" python3 -c '
+CEREZLER="$CEREZLER" SOGO="$SOGO" python3 -c '
 import json, os
 print(json.dumps({
   "cerezler": [c for c in os.environ["CEREZLER"].split("\n") if c.strip()],
-  "hedef": "https://webmail.%s/SOGo/" % os.environ["DOMAIN"]
+  "hedef": "https://%s/SOGo/" % os.environ["SOGO"]
 }))'

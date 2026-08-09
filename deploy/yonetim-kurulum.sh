@@ -73,6 +73,19 @@ mkdir -p "$KLON/yonetim/tmp"
 touch "$KLON/yonetim/tmp/restart.txt"
 echo "[ok] uygulama yenileme bayragi birakildi"
 
+# 6d) Kapi parola koprusu — panel surecine parola VERMEZ, yalniz SOGo oturum cerezi doner
+KOPRU=/opt/rescomail/deploy/parola-koprusu.sh
+if [ -f "$KOPRU" ]; then
+  chown root:root "$KOPRU"; chmod 750 "$KOPRU"
+  printf 'KAPI_ENV=%s\nSOGO_HOST=%s\n' "$ENVD" "${SOGO_HOST:-webmail.rescopos.com}" > /etc/rescomail-kapi.conf
+  chown root:root /etc/rescomail-kapi.conf; chmod 640 /etc/rescomail-kapi.conf
+  PANEL_SAHIP=$(stat -c %U "$HEDEF")
+  printf '%s ALL=(root) NOPASSWD: %s\n' "$PANEL_SAHIP" "$KOPRU" > /etc/sudoers.d/rescomail-kapi
+  chmod 440 /etc/sudoers.d/rescomail-kapi
+  visudo -cf /etc/sudoers.d/rescomail-kapi >/dev/null || { rm -f /etc/sudoers.d/rescomail-kapi; echo "HATA: sudoers gecersiz"; exit 1; }
+  echo "[ok] kapi koprusu ($PANEL_SAHIP)"
+fi
+
 # 7) sahiplik + izin
 SAHIP=$(stat -c %U /var/www/vhosts/rescopos.com)
 chown -R "$SAHIP:psacln" "$KLON"

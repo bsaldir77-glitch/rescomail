@@ -317,6 +317,101 @@ app.get('/bilgi/:token', async (req, res) => {
   res.send(bilgi_sayfasi('Resco Mail hesabınız', govde));
 });
 
+// ============ KAPI: webmail.rescopos.com giris sayfasindan SMS ile giris ============
+// Giris ekrani SOGo sayfasina JS ile eklenir (theme/kapi-giris.js); dogrulama burada yapilir.
+// Ayni ust alan (rescopos.com) oldugu icin oturum cerezi .rescopos.com'a yazilabilir.
+const { execFile } = require('child_process');
+const KAPI_KAYNAKLAR = (process.env.KAPI_KAYNAK || 'https://webmail.rescopos.com').split(',');
+const KOPRU_YOL = process.env.KOPRU_YOL || '/opt/rescomail/deploy/parola-koprusu.sh';
+
+app.use('/api/kapi', (req, res, next) => {
+  const kaynak = req.headers.origin;
+  if (kaynak && KAPI_KAYNAKLAR.includes(kaynak)) {
+    res.setHeader('Access-Control-Allow-Origin', kaynak);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Vary', 'Origin');
+  }
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
+const kapi_denemeler = new Map();
+function kapi_hiz(req, res, next) {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const simdi = Date.now(), d = kapi_denemeler.get(ip);
+  if (d && simdi - d.ilk < 15 * 60 * 1000 && d.sayi >= 8)
+    return res.status(429).json({ hata: 'Çok fazla deneme — 15 dakika sonra tekrar deneyin' });
+  if (!d || simdi - d.ilk >= 15 * 60 * 1000) kapi_denemeler.set(ip, { sayi: 1, ilk: simdi });
+  else d.sayi++;
+  next();
+}
+const kapi_kayit = (eposta, olay, ip) =>
+  db.pg.query('INSERT INTO kapi_giris_kayitlari (eposta, olay, ip) VALUES ($1,$2,$3)', [eposta, olay, ip || null]);
+
+app.post('/api/kapi/kod', kapi_hiz, async (req, res) => {
+  const netgsm = require('./lib/netgsm');
+  const eposta = String((req.body || {}).eposta || '').trim().toLowerCase();
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  if (!eposta_gecerli(eposta)) return res.status(400).json({ hata: 'Geçerli bir e-posta adresi girin' });
+  const { rows } = await db.pg.query('SELECT telefon, sms_giris_acik FROM otp_ayarlari WHERE eposta=$1', [eposta]);
+  const tel = rows.length && rows[0].sms_giris_acik ? netgsm.telefon_tr(rows[0].telefon) : null;
+  if (!tel) {
+    await kapi_kayit(eposta, 'sms_kapali', ip);
+    return res.status(400).json({ hata: 'Bu adres için SMS ile giriş tanımlı değil — parolanızla girin' });
+  }
+  const eski = await db.pg.query('SELECT bitis FROM kapi_kodlari WHERE eposta=$1', [eposta]);
+  if (eski.rows.length && new Date(eski.rows[0].bitis).getTime() - Date.now() > 4 * 60 * 1000)
+    return res.json({ tamam: true, maske: '0*** *** ' + tel.slice(-2) });
+  const kimlik = await netgsm_kimlik();
+  if (!kimlik) return res.status(502).json({ hata: 'SMS servisi tanımlı değil' });
+  const kod = String(crypto.randomInt(100000, 1000000));
+  await db.pg.query(
+    `INSERT INTO kapi_kodlari (eposta, kod_hash, bitis, deneme) VALUES ($1,$2, now()+interval '5 minutes',0)
+     ON CONFLICT (eposta) DO UPDATE SET kod_hash=$2, bitis=now()+interval '5 minutes', deneme=0`,
+    [eposta, crypto.createHash('sha256').update(kod).digest('hex')]);
+  const sonuc = await netgsm.sms_gonder(kimlik, tel, `Resco Mail giris kodunuz: ${kod}`);
+  if (!sonuc.ok) return res.status(502).json({ hata: 'SMS gönderilemedi' });
+  await kapi_kayit(eposta, 'kod_gonderildi', ip);
+  res.json({ tamam: true, maske: '0*** *** ' + tel.slice(-2) });
+});
+
+app.post('/api/kapi/dogrula', kapi_hiz, async (req, res) => {
+  const { eposta: ham, kod } = req.body || {};
+  const eposta = String(ham || '').trim().toLowerCase();
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  if (!eposta_gecerli(eposta)) return res.status(400).json({ hata: 'Geçersiz adres' });
+  const { rows } = await db.pg.query('SELECT kod_hash, bitis, deneme FROM kapi_kodlari WHERE eposta=$1', [eposta]);
+  if (!rows.length || new Date(rows[0].bitis).getTime() < Date.now())
+    return res.status(403).json({ hata: 'Kodun süresi doldu — yeniden kod isteyin' });
+  if (rows[0].deneme >= 5) {
+    await db.pg.query('DELETE FROM kapi_kodlari WHERE eposta=$1', [eposta]);
+    await kapi_kayit(eposta, 'kod_kilitlendi', ip);
+    return res.status(403).json({ hata: 'Çok fazla yanlış deneme — yeniden kod isteyin' });
+  }
+  if (crypto.createHash('sha256').update(String(kod || '')).digest('hex') !== rows[0].kod_hash) {
+    await db.pg.query('UPDATE kapi_kodlari SET deneme=deneme+1 WHERE eposta=$1', [eposta]);
+    return res.status(403).json({ hata: 'Kod hatalı' });
+  }
+  await db.pg.query('DELETE FROM kapi_kodlari WHERE eposta=$1', [eposta]);
+
+  const kopru = await new Promise(resolve =>
+    execFile('sudo', ['-n', KOPRU_YOL, eposta], { timeout: 25000 }, (err, out) => {
+      if (err && !out) return resolve({ hata: 'kopru_calismadi' });
+      try { resolve(JSON.parse(String(out).trim().split('\n').pop())); }
+      catch { resolve({ hata: 'kopru_yaniti_okunamadi' }); }
+    }));
+  if (kopru.hata || !kopru.cerezler) {
+    await kapi_kayit(eposta, 'kopru_hata:' + (kopru.hata || 'bos'), ip);
+    return res.status(502).json({ hata: 'Posta kutusu açılamadı — yöneticinize başvurun' });
+  }
+  const alan = process.env.KAPI_CEREZ_ALAN || '.rescopos.com';
+  res.setHeader('Set-Cookie', kopru.cerezler.map(c =>
+    `${c.split(';')[0].trim()}; Domain=${alan}; Path=/; Secure; SameSite=Lax${/httponly/i.test(c) ? '; HttpOnly' : ''}`));
+  await kapi_kayit(eposta, 'giris', ip);
+  res.json({ tamam: true, hedef: kopru.hedef });
+});
+
 // --- islem kaydi ---
 app.get('/api/kayitlar', oturum_gerekli, async (_req, res) => {
   const { rows } = await db.pg.query(
