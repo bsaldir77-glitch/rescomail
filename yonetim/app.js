@@ -26,13 +26,8 @@ app.use(express.json());
 app.use(express.static(__dirname + '/public'));
 
 const parola_uret = () => crypto.randomBytes(9).toString('base64url') + '!A1';
-const telefon_normalize = t => {
-  if (!t) return null;
-  let r = String(t).replace(/\D/g, '');
-  if (r.startsWith('90') && r.length === 12) r = '0' + r.slice(2);
-  if (r.length === 10 && r.startsWith('5')) r = '0' + r;
-  return r || null;
-};
+// Tek normalizasyon noktasi (TR cep + yurtdisi ulke kodlu numaralar)
+const telefon_normalize = t => require('./lib/netgsm').telefon_tr(t);
 const eposta_gecerli = e => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(e || '');
 
 // --- kurulum modu: yonetici yoksa ilk kayit serbest, varsa kilitli ---
@@ -347,7 +342,7 @@ app.post('/api/hesaplar/bilgi', oturum_gerekli, async (req, res) => {
   await db.pg.query('DELETE FROM bilgi_paketleri WHERE bitis < now()'); // suresi gecenleri temizle
   const token = crypto.randomBytes(16).toString('hex');
   const webmail = process.env.KAPI_WEBMAIL || 'https://webmail.rescopos.com/'; // TEK ADRES
-  const icerik = { eposta: eposta.toLowerCase(), webmail: webmail, telefon: '0' + tel };
+  const icerik = { eposta: eposta.toLowerCase(), webmail: webmail, telefon: (tel.length === 10 && tel.startsWith('5') ? '0' + tel : '+' + tel) };
   if (parola) icerik.parola = parola;
   await db.pg.query(
     `INSERT INTO bilgi_paketleri (token, eposta, icerik_sifreli, bitis) VALUES ($1,$2,$3, now()+interval '1 hour')`,
@@ -431,7 +426,7 @@ app.post('/api/kapi/kod', kapi_hiz, async (req, res) => {
   }
   const eski = await db.pg.query('SELECT bitis FROM kapi_kodlari WHERE eposta=$1', [eposta]);
   if (eski.rows.length && new Date(eski.rows[0].bitis).getTime() - Date.now() > 4 * 60 * 1000)
-    return res.json({ tamam: true, maske: '0*** *** ' + tel.slice(-2) });
+    return res.json({ tamam: true, maske: netgsm.telefon_maske(tel) });
   const kimlik = await netgsm_kimlik();
   if (!kimlik) return res.status(502).json({ hata: 'SMS servisi tanımlı değil' });
   const kod = String(crypto.randomInt(100000, 1000000));
@@ -442,7 +437,7 @@ app.post('/api/kapi/kod', kapi_hiz, async (req, res) => {
   const sonuc = await netgsm.sms_gonder(kimlik, tel, `Resco Mail giris kodunuz: ${kod}`);
   if (!sonuc.ok) return res.status(502).json({ hata: 'SMS gönderilemedi' });
   await kapi_kayit(eposta, 'kod_gonderildi', ip);
-  res.json({ tamam: true, maske: '0*** *** ' + tel.slice(-2) });
+  res.json({ tamam: true, maske: netgsm.telefon_maske(tel) });
 });
 
 app.post('/api/kapi/dogrula', kapi_hiz, async (req, res) => {

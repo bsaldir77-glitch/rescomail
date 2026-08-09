@@ -85,7 +85,7 @@ app.post('/api/kod', hiz_siniri, async (req, res) => {
   const sonuc = await netgsm.sms_gonder(kimlik, tel, `Resco Mail giris kodunuz: ${kod}`);
   if (!sonuc.ok) return res.status(502).json({ hata: 'SMS gönderilemedi — yöneticinize başvurun' });
   await kayit(eposta, 'kod_gonderildi', ip);
-  res.json({ tamam: true, maske: '0*** *** ' + tel.slice(-2) });
+  res.json({ tamam: true, maske: netgsm.telefon_maske(tel) });
 });
 
 // 2) Kodu dogrula → SOGo oturumunu tarayiciya devret
