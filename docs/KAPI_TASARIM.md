@@ -1,48 +1,50 @@
-# Resco Mail Kapı — V2 (webmail'e e-posta + SMS OTP ile parolasız giriş)
+# Resco Mail Kapı — SMS ile parolasız webmail girişi (KURULDU, 2026-08-09)
 
-Hedef (Bülent, 2026-08-09): **e-posta yaz → [Kod Gönder] → telefona 6 haneli kod → giriş.** Parola yok.
+**Tek adres: `webmail.rescopos.com`.** Kullanıcı buraya girer, giriş sayfasında "SMS ile giriş" kutusunu görür:
+e-posta → [Kod Gönder] → telefona 6 haneli kod → [Giriş Yap] → posta kutusu. Parola hiç girilmez.
+Hangi markanın hesabı olursa olsun (saldir.tr, expresscoffee.com.tr…) hepsi bu adresten girer — tüm
+`webmail.*` adresleri zaten aynı sogod'a bağlı ve kullanıcı kaynağı tüm domainleri kapsıyor.
 
-## 1. Mimari — kanıta dayalı (2026-08-09 sunucu doğrulamaları)
-
-İlk taslak SOGo'nun `SOGoTrustProxyAuthentication` + Dovecot master-user yolunu öneriyordu. Sunucuda iki şey doğrulanınca **çok daha basit ve güvenli** bir yol açıldı:
+## 1. Mimari — kanıta dayalı (sunucu doğrulamaları, 2026-08-09)
 
 1. Plesk posta parolalarını **`sym`** (geri döndürülebilir) saklıyor; `plesk sbin mail_auth_view` (0750 root:root) düz metin verir.
 2. `POST /SOGo/connect` doğru kimlikle **200 + `0xHIGHFLYxSOGo` oturum çerezi** döndürüyor (test edildi).
 
-Seçilen akış — **Kapı yalnız giriş anında devrede, veri yolunda DEĞİL:**
+Bu yüzden ilk taslaktaki `SOGoTrustProxyAuthentication` + Dovecot master-user yolu **terk edildi**.
 
 ```
-tarayıcı → Kapı (giris.<domain>)         : e-posta + OTP
-Kapı → sudo → parola-koprusu.sh (root)  : parola Kapı'ya HİÇ verilmez
-kopru → SOGo /connect (yerel)           : oturum çerezini alır
-Kapı → tarayıcı                         : çerezi Domain=.<domain> ile devreder → /SOGo/'ya yönlendirir
-tarayıcı ⇄ SOGo                          : bundan sonrası doğrudan (Kapı aradan çıkar)
+webmail.rescopos.com (SOGo giriş sayfası)
+  └─ theme.js içine eklenen kutu (theme/kapi-giris.js)      ← ekran
+       ↓ fetch (credentials, CORS)
+mailprovider.rescopos.com  /api/kapi/kod · /api/kapi/dogrula ← doğrulama (mevcut panel uygulaması)
+       ↓ sudo (tek komut)
+deploy/parola-koprusu.sh (root)                              ← parola panele HİÇ verilmez
+       ↓ SOGo /connect (yerel)
+  oturum çerezi → panel çerezi Domain=.rescopos.com ile yazar → sayfa /SOGo/'ya gider
 ```
 
-**Kazanç:** `sogo.conf` değişmez, **SOGo restart'ı gerekmez**, trust-başlığı yok (yani header sahteciliğiyle "herkes olarak giriş" riski hiç doğmaz), posta trafiği Node'dan geçmez, kalan domainler hiç etkilenmez.
+**Kazanç:** yeni alan adı yok, yeni servis yok, `sogo.conf` değişmiyor, **SOGo restart'ı gerekmiyor**
+(giriş kutusu statik JS olarak iniyor), trust-başlığı yok, posta trafiği bizim koddan geçmiyor.
 
 ## 2. Güvenlik hattı
 
-- **Parola Kapı sürecine girmez** — köprü root'tadır, dışarı yalnız oturum çerezi verir.
-- Köprü üç kapı: (1) e-posta regex, (2) **hesap `otp_ayarlari.sms_giris_acik=true` olmalı** (yarıçap yalnız gönüllü hesaplar), (3) `.env` yolu root'a ait `/etc/rescomail-kapi.conf`'tan gelir — çağıran süreç seçemez.
-- Köprü `root:root 0750`; vhost kullanıcısı yalnız **tek komuta** sudo hakkına sahip (değiştiremez).
-- OTP: 6 hane, 5 dk, 5 yanlış deneme = kilit, 60 sn yeniden-gönderim freni, IP başına 8 istek/15 dk. Kodlar SHA-256 hash'li, tek kullanımlık.
-- Her olay `kapi_giris_kayitlari`'na yazılır (kod gönderimi, giriş, köprü hatası, kilit).
-- **Kimse dışarıda kalmaz:** SMS girişi kapalı hesap "parolamla giriş" bağlantısıyla klasik SOGo'ya düşer.
-- **Geri dönüş:** Kapı'yı durdurmak yeterli — webmail adresleri hiç değişmediği için mevcut giriş aynen çalışmaya devam eder.
+- Parola panel sürecine girmez — köprü root'tadır, dışarı yalnız oturum çerezi verir.
+- Köprü üç kapı: e-posta regex · hesap `otp_ayarlari.sms_giris_acik=true` olmalı · `.env` yolu root'a ait
+  `/etc/rescomail-kapi.conf`'tan gelir (çağıran süreç seçemez). Köprü `root:root 0750`, vhost kullanıcısı
+  yalnız **tek komuta** sudo hakkına sahip.
+- CORS yalnız `https://webmail.rescopos.com` kaynağına açık (`KAPI_KAYNAK` ile genişletilebilir).
+- OTP: 6 hane · 5 dk · 5 yanlış = kilit · 60 sn yeniden-gönderim freni · IP başına 8 istek/15 dk · SHA-256 hash, tek kullanımlık.
+- Her olay `kapi_giris_kayitlari`'na yazılır. SMS'i açmayan hesaplar parolayla girmeye devam eder.
+- **Geri dönüş:** `deploy/apply.sh`'ta birleştirmeyi kaldırıp tekrar çalıştırmak yeterli — giriş kutusu kaybolur, SOGo'nun kendi girişi kalır.
 
-## 3. Kurulum
+## 3. Kurulum / güncelleme
 
-- `kapi/` (Node/Express) Plesk alt alan adında Passenger ile çalışır — panelle aynı desen.
-- **Pilot: `giris.saldir.tr`** (Bülent Plesk'te açar, Node.js aktif) → `deploy/kapi-kurulum.sh` (idempotent; .env'i panelin DB/kasa bilgilerinden türetir, sudo köprüsünü ve root yapılandırmasını kurar).
-- Panel bağı: OTP Ayarları'ndaki telefon + "SMS ile giriş" anahtarı doğrudan bu akışı yönetir (aynı tablo).
-- Yayılım: her marka için bir `giris.<domain>` alt alan adı; aynı script alan adı parametresiyle çalışır.
+- Panel + köprü: `deploy/yonetim-kurulum.sh` (sudoers + `/etc/rescomail-kapi.conf` dahil, idempotent).
+- Giriş kutusu: `deploy/apply.sh` → `theme/theme.js` + `theme/kapi-giris.js` birleşip SOGo'ya iner.
+- Kullanıcı açma: panel → OTP Ayarları → telefon + "SMS ile giriş" anahtarı.
 
-## 4. Doğrulanacak tek risk (pilotun go/no-go testi)
+## 4. Kullanılmayan dosyalar (silme onayı bekliyor)
 
-SOGo oturumu, girişin yapıldığı **IP/oturum bağlamına** bağlıysa köprüden alınan çerez tarayıcıda geçersiz olabilir. Bu, canlı testte hemen görülür: kod doğru girildiği hâlde SOGo login ekranına düşülüyorsa bu maddedir → çözüm sırası: (a) SOGo'nun oturum-IP ayarını gevşetmek, (b) ilk taslaktaki trust-proxy yoluna dönmek. Pilot bu yüzden tek domainde.
-
-## 5. Kalan işler
-
-- Kapı'nın kendi girişinde "beni hatırla" (SOGo'nun kendi oturum süresi kullanılıyor — şimdilik ek yok).
-- Telefon uygulamaları (IMAP/DAV/EAS) parola ile çalışmaya devam eder — parolasızlık yalnız webmail arayüzü içindir.
+Tek-adres kararından önce yazılan ayrı Kapı uygulaması **kullanılmıyor**: `kapi/` klasörü ve
+`deploy/kapi-kurulum.sh`, `deploy/eposta-vhost.conf`. Aynı şekilde pilot için açılan **`giris.saldir.tr`**
+alt alan adı da gereksiz kaldı. Bülent onay verirse temizlenecek.
