@@ -146,12 +146,21 @@ $('#b-test').addEventListener('click', async () => {
 // --- hesaplar ---
 function domainleri_doldur() {
   const dler = [...new Set(hesaplar.map(h => h.domain))].sort();
-  $('#f-domain').innerHTML = '<option value="">Tüm domainler (' + dler.length + ')</option>' +
-    dler.map(d => `<option>${kacir(d)}</option>`).join('');
+  const secenekler = '<option value="">Tüm domainler (' + dler.length + ')</option>' +
+    dler.map(d => `<option>${kacir(d)} (${hesaplar.filter(h => h.domain === d).length})</option>`).join('');
+  // secim korunur (yeniden cizimde kullanicinin filtresi kaybolmasin)
+  [['#f-domain', hesaplari_ciz], ['#o-domain', otp_ciz]].forEach(([sec]) => {
+    const onceki = $(sec).value;
+    $(sec).innerHTML = secenekler;
+    if (onceki) $(sec).value = onceki;
+  });
 }
 
+// Secenek metninde sayac oldugu icin ("alan.com (3)") filtrelemede sayaci ayikla
+const secili_domain = sec => ($(sec).value || '').replace(/\s*\(\d+\)\s*$/, '');
+
 function hesaplari_ciz() {
-  const dom = $('#f-domain').value, ara = $('#f-ara').value.toLowerCase();
+  const dom = secili_domain('#f-domain'), ara = $('#f-ara').value.toLowerCase();
   const satirlar = hesaplar
     .filter(h => (!dom || h.domain === dom) && (!ara || h.eposta.toLowerCase().includes(ara)))
     .map(h => `<tr>
@@ -166,6 +175,8 @@ function hesaplari_ciz() {
 }
 $('#f-domain').addEventListener('change', hesaplari_ciz);
 $('#f-ara').addEventListener('input', hesaplari_ciz);
+$('#o-domain').addEventListener('change', otp_ciz);
+$('#o-ara').addEventListener('input', otp_ciz);
 
 async function yenile() {
   hesaplar = await api('/api/hesaplar');
@@ -259,7 +270,10 @@ document.addEventListener('click', async e => {
 
 // --- otp sekmesi ---
 function otp_ciz() {
-  $('#t-otp tbody').innerHTML = hesaplar.map(h => `<tr>
+  const dom = secili_domain('#o-domain'), ara = $('#o-ara').value.toLowerCase();
+  $('#t-otp tbody').innerHTML = hesaplar
+    .filter(h => (!dom || h.domain === dom) && (!ara || h.eposta.toLowerCase().includes(ara)))
+    .map(h => `<tr>
     <td>${kacir(h.eposta)}</td>
     <td><input class="tablo-ici" data-tel="${kacir(h.eposta)}" value="${h.otp && h.otp.telefon ? kacir(h.otp.telefon) : ''}" placeholder="telefon">
         <button class="btn kucuk ikincil" data-kaydet="${kacir(h.eposta)}">Kaydet</button></td>
