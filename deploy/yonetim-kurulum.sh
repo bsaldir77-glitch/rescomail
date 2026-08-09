@@ -24,13 +24,13 @@ echo "[ok] bagimliliklar (node $(node -v))"
 if [ -f "$ENVD" ]; then
   echo "[atla] .env mevcut — sir uretimi ve DB adimlari atlandi"
 else
+  # PG erisimi Plesk uzerinden (bu sunucuda postgres peer-auth kapali; Plesk PG'yi yonetiyor)
   PGPW=$(openssl rand -hex 16)
-  sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='rescomail'" | grep -q 1 || \
-    sudo -u postgres psql -qc "CREATE ROLE rescomail LOGIN"
-  sudo -u postgres psql -qc "ALTER ROLE rescomail LOGIN PASSWORD '$PGPW'"
-  sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='rescomail_db'" | grep -q 1 || \
-    sudo -u postgres createdb -O rescomail rescomail_db
-  echo "[ok] postgres (rescomail_db)"
+  plesk bin database --create rescomail_db -domain rescopos.com -type postgresql -server localhost:5432 >/dev/null 2>&1 || true
+  plesk bin database --create-dbuser rescomail -passwd "$PGPW" -database rescomail_db -domain rescopos.com -type postgresql -server localhost:5432 >/dev/null 2>&1 || \
+    plesk bin database --update-dbuser rescomail -passwd "$PGPW" -database rescomail_db -domain rescopos.com -type postgresql -server localhost:5432 >/dev/null
+  PGPASSWORD="$PGPW" psql -h 127.0.0.1 -U rescomail -d rescomail_db -tAc 'SELECT 1' | grep -q 1 || { echo "HATA: PG baglanti dogrulamasi basarisiz"; exit 1; }
+  echo "[ok] postgres (rescomail_db, Plesk uzerinden)"
 
   MYDB=$(grep -oE 'mysql://[^"]+' /etc/sogo/sogo.conf | sed -E 's#.*/([^/]+)/[^/]+$#\1#' | head -1)
   [ -n "$MYDB" ] || { echo "HATA: sogo.conf viewURL'den MySQL DB adi cikarilamadi"; exit 1; }
