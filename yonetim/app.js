@@ -284,13 +284,15 @@ app.post('/api/hesaplar/bilgi', oturum_gerekli, async (req, res) => {
   if (!kimlik) return res.status(400).json({ hata: 'Once NetGSM bilgilerini kaydet' });
   await db.pg.query('DELETE FROM bilgi_paketleri WHERE bitis < now()'); // suresi gecenleri temizle
   const token = crypto.randomBytes(16).toString('hex');
-  const icerik = { eposta: eposta.toLowerCase(), webmail: `https://webmail.${eposta.split('@')[1]}/`, telefon: '0' + tel };
+  const webmail = process.env.KAPI_WEBMAIL || 'https://webmail.rescopos.com/'; // TEK ADRES
+  const icerik = { eposta: eposta.toLowerCase(), webmail: webmail, telefon: '0' + tel };
   if (parola) icerik.parola = parola;
   await db.pg.query(
     `INSERT INTO bilgi_paketleri (token, eposta, icerik_sifreli, bitis) VALUES ($1,$2,$3, now()+interval '1 hour')`,
     [token, eposta.toLowerCase(), kasa.sifrele(icerik)]);
   const link = `https://mailprovider.rescopos.com/bilgi/${token}`;
-  const sonuc = await netgsm.sms_gonder(kimlik, tel, `Resco Mail hesap bilgilendirmeniz: ${link} (baglanti 1 saat gecerlidir)`);
+  const sonuc = await netgsm.sms_gonder(kimlik, tel,
+    `Resco Mail hesabiniz hazir. Giris: webmail.rescopos.com - bilgileriniz: ${link} (1 saat gecerli)`);
   if (!sonuc.ok) return res.status(502).json({ hata: 'SMS gonderilemedi: ' + sonuc.hata });
   await db.kayit(req.yonetici, 'bilgi_gonder', eposta.toLowerCase(), { parola_dahil: !!parola });
   res.json({ tamam: true });
@@ -307,12 +309,17 @@ app.get('/bilgi/:token', async (req, res) => {
   let ic; try { ic = kasa.coz(rows[0].icerik_sifreli); } catch { return dolmus(); }
   const bitis = new Date(rows[0].bitis).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' });
   let govde = `
-    <div class="satir"><b>Webmail adresiniz</b><a href="${esc(ic.webmail)}">${esc(ic.webmail)}</a></div>
-    <div class="satir"><b>E-posta adresiniz</b><span>${esc(ic.eposta)}</span></div>
-    <div class="satir"><b>Doğrulama telefonunuz</b><span>${esc(ic.telefon)}</span></div>`;
+    <div class="satir"><b>Posta adresiniz</b><span>${esc(ic.eposta)}</span></div>
+    <div class="satir"><b>Giriş adresi</b><a href="${esc(ic.webmail)}">${esc(ic.webmail)}</a></div>
+    <div class="satir"><b>Doğrulama telefonunuz</b><span>${esc(ic.telefon)}</span></div>
+    <div class="satir"><b>Nasıl girilir?</b><span style="font-size:14px;line-height:1.6">
+      1. Giriş adresini açın<br>
+      2. Posta adresinizi yazıp <b>Kod Gönder</b>'e basın<br>
+      3. Telefonunuza gelen 6 haneli kodu girin</span></div>
+    <p class="not">Parola yok — her girişte telefonunuza kod gelir.</p>`;
   if (ic.parola) govde += `
-    <div class="satir"><b>Geçici parolanız</b><div class="parola">${esc(ic.parola)}</div></div>
-    <p class="not">İlk girişten sonra parolanızı değiştirmenizi öneririz.</p>`;
+    <div class="satir"><b>Telefon / Outlook parolası</b><div class="parola">${esc(ic.parola)}</div>
+      <span style="font-size:12.5px;color:#5b6b78">Yalnız posta uygulaması kurarken gerekir; web girişinde kullanılmaz.</span></div>`;
   govde += `<p class="not">Bu sayfa saat ${esc(bitis)}'e kadar görüntülenebilir, sonra kendini imha eder.</p>`;
   res.send(bilgi_sayfasi('Resco Mail hesabınız', govde));
 });
