@@ -12,7 +12,7 @@ Hedef (Bülent, 2026-08-09): **e-posta yaz → [Kod Gönder] → telefona 6 hane
 Seçilen akış — **Kapı yalnız giriş anında devrede, veri yolunda DEĞİL:**
 
 ```
-tarayıcı → Kapı (mail.<domain>)         : e-posta + OTP
+tarayıcı → Kapı (giris.<domain>)         : e-posta + OTP
 Kapı → sudo → parola-koprusu.sh (root)  : parola Kapı'ya HİÇ verilmez
 kopru → SOGo /connect (yerel)           : oturum çerezini alır
 Kapı → tarayıcı                         : çerezi Domain=.<domain> ile devreder → /SOGo/'ya yönlendirir
@@ -34,9 +34,9 @@ tarayıcı ⇄ SOGo                          : bundan sonrası doğrudan (Kapı 
 ## 3. Kurulum
 
 - `kapi/` (Node/Express) Plesk alt alan adında Passenger ile çalışır — panelle aynı desen.
-- **Pilot: `mail.saldir.tr`** (Bülent Plesk'te açar, Node.js aktif) → `deploy/kapi-kurulum.sh` (idempotent; .env'i panelin DB/kasa bilgilerinden türetir, sudo köprüsünü ve root yapılandırmasını kurar).
+- **Pilot: `giris.saldir.tr`** (Bülent Plesk'te açar, Node.js aktif) → `deploy/kapi-kurulum.sh` (idempotent; .env'i panelin DB/kasa bilgilerinden türetir, sudo köprüsünü ve root yapılandırmasını kurar).
 - Panel bağı: OTP Ayarları'ndaki telefon + "SMS ile giriş" anahtarı doğrudan bu akışı yönetir (aynı tablo).
-- Yayılım: her marka için bir `mail.<domain>` alt alan adı; aynı script alan adı parametresiyle çalışır.
+- Yayılım: her marka için bir `giris.<domain>` alt alan adı; aynı script alan adı parametresiyle çalışır.
 
 ## 4. Doğrulanacak tek risk (pilotun go/no-go testi)
 

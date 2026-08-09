@@ -1,9 +1,9 @@
 #!/bin/bash
-# Resco Mail Kapi kurulumu. Kullanim: kapi-kurulum.sh [kapi-alan-adi]   (varsayilan: mail.saldir.tr)
+# Resco Mail Kapi kurulumu. Kullanim: kapi-kurulum.sh [kapi-alan-adi]   (varsayilan: giris.saldir.tr)
 # Idempotent, sir basmaz. Onkosul: Plesk'te alt alan adi + Node.js destegi acik olmali.
 set -euo pipefail
 
-KAPI_ALAN="${1:-mail.saldir.tr}"
+KAPI_ALAN="${1:-giris.saldir.tr}"
 ANA_ALAN="${KAPI_ALAN#*.}"
 HEDEF="/var/www/vhosts/$ANA_ALAN/$KAPI_ALAN"
 KLON="$HEDEF/rescomail"
