@@ -54,32 +54,43 @@ async function sms_gonder(kimlik, telefon, mesaj) {
 }
 
 // Teslim raporu — NetGSM'e "bu mesaj ulasti mi" diye sorar (bulkid = gonderimdeki jobid).
-// Yanit satirlari: <jobid> <numara> <durum> ... — durum kodlari asagidaki haritada.
+// GERCEK yanit bicimi (2026-08-09 canli olcum): "<numara> <durum> <?> <?> <tarih> <saat> <?><br>"
+//   orn: "909874642656 3 0 0 09.08.2026 08:54:59 112<br>"
+// NetGSM resmi rapor durum kodlari (netgsm1/sms dokumantasyonu)
 const TESLIM = {
-  '0': 'bekliyor', '1': 'iletildi', '2': 'ulasmadi', '3': 'zaman asimi',
-  '4': 'hatali numara', '11': 'operator hatasi', '12': 'operator hatasi',
-  '13': 'kara listede', '100': 'bekliyor'
+  '0': 'bekliyor', '1': 'iletildi', '2': 'zaman asimi', '3': 'reddedildi',
+  '4': 'hatali/kisitli numara', '11': 'operator kabul etmedi',
+  '12': 'gonderim hatasi', '13': 'mukerrer'
 };
 
 async function teslim_sorgula(kimlik, jobid) {
   const params = new URLSearchParams({
     usercode: kimlik.kullanici, password: kimlik.parola, bulkid: String(jobid), type: '0', version: '2'
   });
-  let txt = '';
+  let txt = '', durum_kodu = 0;
   try {
     const r = await fetch('https://api.netgsm.com.tr/sms/report?' + params.toString(), {
       headers: { 'User-Agent': 'rescomail/1.0' }, signal: AbortSignal.timeout(15000)
     });
+    durum_kodu = r.status;
     txt = (await r.text()).trim();
   } catch (e) {
     return { ok: false, hata: 'Rapor sorgulanamadi: ' + e.message };
   }
+  if (durum_kodu === 429) return { ok: false, hata: 'NetGSM sorgu limiti — biraz sonra tekrar dene' };
   if (!txt) return { ok: false, hata: 'NetGSM bos yanit verdi' };
-  // Ilk anlamli satirin durum alanini al; anlasilmazsa ham yaniti geri ver
-  const satir = txt.split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
+
+  const satir = txt.replace(/<br\s*\/?>/gi, '\n').split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
   const parcalar = satir.split(/\s+/);
-  const durum = parcalar.length >= 3 ? parcalar[2] : (parcalar[0] || '');
-  return { ok: true, teslim: TESLIM[durum] || ('bilinmiyor (' + satir.slice(0, 60) + ')') };
+  // Ilk alan numara, ikincisi durum kodu olmali; degilse ham yaniti hata olarak bildir (uydurma yok)
+  if (!/^\d{7,15}$/.test(parcalar[0] || '') || !/^\d{1,3}$/.test(parcalar[1] || ''))
+    return { ok: false, hata: 'Anlasilmayan rapor: ' + satir.slice(0, 80) };
+
+  return {
+    ok: true,
+    rapor_no: parcalar[0],                                   // NetGSM'in gercekte gonderdigi numara
+    teslim: TESLIM[parcalar[1]] || ('kod ' + parcalar[1])
+  };
 }
 
 module.exports = { telefon_tr, telefon_maske, sms_gonder, teslim_sorgula };

@@ -389,7 +389,8 @@ async function sms_ciz(yeniden) {
     .map(k => `<tr>
       <td>${new Date(k.ts).toLocaleString('tr-TR')}</td>
       <td>${kacir(SMS_TUR[k.tur] || k.tur)}</td>
-      <td>${kacir(k.telefon)}</td>
+      <td>${kacir(k.telefon)}${k.rapor_no && k.rapor_no !== k.telefon
+            ? `<br><span class="kucuknot" title="NetGSM'in gerçekte gönderdiği numara">→ ${kacir(k.rapor_no)}</span>` : ''}</td>
       <td>${kacir(k.eposta || '')}</td>
       <td>${k.sonuc === 'gonderildi'
             ? rozet('gönderildi', ['#E3F2FD', '#0D47A1'])
@@ -402,7 +403,8 @@ $('#s-durum').addEventListener('click', async () => {
   $('#s-durum-not').textContent = ' NetGSM\'e soruluyor...';
   try {
     const s = await api('/api/sms-kayitlari/durum', {});
-    $('#s-durum-not').textContent = ` ${s.sorulan} kayıt soruldu, ${s.guncellenen} güncellendi`;
+    $('#s-durum-not').textContent = ` ${s.sorulan} kayıt soruldu, ${s.guncellenen} güncellendi` +
+      (s.hata ? ' — ' + s.hata : '');
     await sms_ciz();
   } catch (e) { $('#s-durum-not').textContent = ' Hata: ' + e.message; }
 });

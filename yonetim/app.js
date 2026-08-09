@@ -499,7 +499,7 @@ app.post('/api/kapi/dogrula', kapi_hiz, async (req, res) => {
 // --- SMS kayitlari: gonderildi mi, NetGSM ne dedi, ulasti mi ---
 app.get('/api/sms-kayitlari', oturum_gerekli, async (_req, res) => {
   const { rows } = await db.pg.query(
-    `SELECT id, tur, eposta, telefon, ozet, sonuc, kod, hata, jobid, teslim, teslim_ts, ts
+    `SELECT id, tur, eposta, telefon, ozet, sonuc, kod, hata, jobid, teslim, teslim_ts, rapor_no, ts
      FROM sms_kayitlari ORDER BY id DESC LIMIT 200`);
   res.json(rows);
 });
@@ -515,16 +515,18 @@ app.post('/api/sms-kayitlari/durum', oturum_gerekli, async (_req, res) => {
        AND (teslim IS NULL OR teslim IN ('bekliyor','bilinmiyor'))
        AND ts > now() - interval '7 days'
      ORDER BY id DESC LIMIT 40`);
-  let sorulan = 0, guncellenen = 0;
+  let sorulan = 0, guncellenen = 0, son_hata = null;
   for (const k of rows) {
+    if (sorulan) await new Promise(r => setTimeout(r, 1500));   // NetGSM sorgu limiti (429) icin ara ver
     sorulan++;
     const r = await netgsm.teslim_sorgula(kimlik, k.jobid);
-    if (!r.ok) continue;
-    await db.pg.query('UPDATE sms_kayitlari SET teslim=$1, teslim_ts=now() WHERE id=$2', [r.teslim, k.id]);
+    if (!r.ok) { son_hata = r.hata; continue; }
+    await db.pg.query('UPDATE sms_kayitlari SET teslim=$1, teslim_ts=now(), rapor_no=$2 WHERE id=$3',
+      [r.teslim, r.rapor_no || null, k.id]);
     guncellenen++;
   }
   await db.kayit(_req.yonetici, 'sms_durum_sorgu', null, { sorulan, guncellenen });
-  res.json({ tamam: true, sorulan, guncellenen });
+  res.json({ tamam: true, sorulan, guncellenen, hata: son_hata });
 });
 
 // --- islem kaydi ---

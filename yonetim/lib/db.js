@@ -37,9 +37,11 @@ async function sema() {
     kod TEXT,                          -- NetGSM hata kodu
     hata TEXT,
     jobid TEXT,
-    teslim TEXT,                       -- NetGSM raporundan: iletildi | ulasmadi | bekliyor ...
+    teslim TEXT,                       -- NetGSM raporundan: iletildi | reddedildi | bekliyor ...
     teslim_ts TIMESTAMPTZ,
+    rapor_no TEXT,                     -- NetGSM'in GERCEKTE gonderdigi numara (bozulma gorunur olsun)
     ts TIMESTAMPTZ NOT NULL DEFAULT now())`);
+  await pg.query(`ALTER TABLE sms_kayitlari ADD COLUMN IF NOT EXISTS rapor_no TEXT`);
   await pg.query(`CREATE TABLE IF NOT EXISTS kapi_kodlari (
     eposta TEXT PRIMARY KEY,
     kod_hash TEXT NOT NULL,
