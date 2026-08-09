@@ -160,6 +160,21 @@ app.post('/api/baglantilar', oturum_gerekli, async (req, res) => {
   res.json({ tamam: true });
 });
 
+app.post('/api/baglantilar/test', oturum_gerekli, async (req, res) => {
+  const netgsm = require('./lib/netgsm');
+  const tel = netgsm.telefon_tr((req.body || {}).telefon);
+  if (!tel) return res.status(400).json({ hata: 'Gecerli bir cep telefonu gir' });
+  const { rows } = await db.pg.query("SELECT veri_sifreli FROM baglanti_ayarlari WHERE saglayici='netgsm'");
+  if (!rows.length) return res.status(400).json({ hata: 'Once NetGSM bilgilerini kaydet' });
+  const kimlik = kasa.coz(rows[0].veri_sifreli);
+  if (!kimlik || !kimlik.kullanici || !kimlik.parola || !kimlik.baslik)
+    return res.status(400).json({ hata: 'NetGSM alanlari eksik (kullanici/parola/baslik)' });
+  const sonuc = await netgsm.sms_gonder(kimlik, tel, 'Resco Mail baglanti testi basarili.');
+  await db.kayit(req.yonetici, 'baglanti_test', 'netgsm', { telefon: tel, ok: sonuc.ok, kod: sonuc.kod || '00' });
+  if (!sonuc.ok) return res.status(502).json({ hata: sonuc.hata, kod: sonuc.kod });
+  res.json({ tamam: true, jobid: sonuc.jobid });
+});
+
 // --- islem kaydi ---
 app.get('/api/kayitlar', oturum_gerekli, async (_req, res) => {
   const { rows } = await db.pg.query(

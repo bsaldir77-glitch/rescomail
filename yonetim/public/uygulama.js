@@ -80,6 +80,13 @@ $('#b-kaydet').addEventListener('click', async () => {
     await baglantilari_ciz();
   } catch (e) { $('#b-durum').textContent = ' Hata: ' + e.message; }
 });
+$('#b-test').addEventListener('click', async () => {
+  $('#b-test-durum').textContent = ' Gönderiliyor...';
+  try {
+    await api('/api/baglantilar/test', { telefon: $('#b-test-tel').value });
+    $('#b-test-durum').textContent = ' SMS gönderildi ✔ — telefonu kontrol et';
+  } catch (e) { $('#b-test-durum').textContent = ' Hata: ' + e.message; }
+});
 
 // --- hesaplar ---
 function domainleri_doldur() {
