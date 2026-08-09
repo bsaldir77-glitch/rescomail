@@ -68,6 +68,11 @@ fi
 grep -q '^BAGLANTI_KEY=' "$ENVD" 2>/dev/null || \
   { echo "BAGLANTI_KEY=$(openssl rand -hex 32)" >> "$ENVD"; echo "[ok] BAGLANTI_KEY eklendi"; }
 
+# 6c) Passenger oto-yenileme (Bulent onayi 2026-08-09): kod guncellendi, bir sonraki istekte taze baslar
+mkdir -p "$KLON/yonetim/tmp"
+touch "$KLON/yonetim/tmp/restart.txt"
+echo "[ok] uygulama yenileme bayragi birakildi"
+
 # 7) sahiplik + izin
 SAHIP=$(stat -c %U /var/www/vhosts/rescopos.com)
 chown -R "$SAHIP:psacln" "$KLON"
