@@ -24,17 +24,20 @@ async function baslat() {
       $('#giris-baslik').textContent = 'İlk Kurulum';
       $('#kurulum-not').classList.remove('gizli');
       $('#g-btn').textContent = 'Yönetici Oluştur';
+      $('#g-parola').classList.remove('gizli');   // ilk kurulumda parola belirlenir
     }
     $('#giris').classList.remove('gizli');
   }
 }
 
-let giris_modu = 'ilk'; // otp moduna gecince kod dogrulanir
+// Giris akisi: once e-posta → hesapta SMS acikse kod, degilse parola sorulur
+let giris_modu = 'eposta';
 $('#g-btn').addEventListener('click', async () => {
   $('#g-hata').textContent = '';
   const eposta = $('#g-eposta').value.trim();
+  const btn = $('#g-btn');
   try {
-    if ($('#g-btn').textContent === 'Yönetici Oluştur') {
+    if (btn.textContent === 'Yönetici Oluştur') {
       await api('/api/kurulum', { eposta, parola: $('#g-parola').value });
       await api('/api/giris', { eposta, parola: $('#g-parola').value });
       return location.reload();
@@ -43,18 +46,30 @@ $('#g-btn').addEventListener('click', async () => {
       await api('/api/giris/otp', { eposta, kod: $('#g-kod').value.trim() });
       return location.reload();
     }
-    const s = await api('/api/giris', { eposta, parola: $('#g-parola').value });
+    if (giris_modu === 'parola') {
+      await api('/api/giris', { eposta, parola: $('#g-parola').value });
+      return location.reload();
+    }
+    if (!eposta) { $('#g-hata').textContent = 'E-posta adresini gir'; return; }
+    btn.disabled = true;
+    const s = await api('/api/giris', { eposta });      // parola gondermeden sor
     if (s.otp_gerekli) {
       giris_modu = 'otp';
-      $('#g-parola').classList.add('gizli');
       $('#g-kod').classList.remove('gizli');
-      $('#g-btn').textContent = 'Kodu Doğrula';
+      btn.textContent = 'Giriş Yap';
       $('#g-hata').textContent = s.not || 'Kod telefonuna gönderildi';
-      return;
+      $('#g-kod').focus();
+    } else {
+      giris_modu = 'parola';
+      $('#g-parola').classList.remove('gizli');
+      btn.textContent = 'Giriş Yap';
+      $('#g-parola').focus();
     }
-    if (s.parola_gerekli) { $('#g-hata').textContent = 'Parolanı gir'; return; }
-    location.reload();
   } catch (e) { $('#g-hata').textContent = e.message; }
+  finally { $('#g-btn').disabled = false; }
+});
+['g-eposta', 'g-parola', 'g-kod'].forEach(function (id) {
+  $('#' + id).addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#g-btn').click(); });
 });
 
 $('#cikis').addEventListener('click', async e => {
