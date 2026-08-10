@@ -78,10 +78,28 @@ $('#cikis').addEventListener('click', async e => {
   location.reload();
 });
 
+// Panel girisi hala parolaysa uyari seridi goster (ayar Baglantilar'da gomulu kalmasin)
+async function serit_kontrol() {
+  const y = await api('/api/yonetici').catch(() => null);
+  if (!y) return;
+  $('#kim').textContent = y.eposta || 'yönetici';
+  $('#uyari-sms').classList.toggle('gizli', !!y.sms_giris);
+  if (!y.sms_giris && y.telefon) $('#u-telefon').value = y.telefon;
+}
+$('#u-ac').addEventListener('click', async () => {
+  $('#u-not').textContent = ' Kaydediliyor...';
+  try {
+    await api('/api/yonetici', { telefon: $('#u-telefon').value, sms_giris: true });
+    $('#u-not').textContent = ' Açıldı — bir sonraki girişte kod sorulacak';
+    setTimeout(() => $('#uyari-sms').classList.add('gizli'), 2500);
+  } catch (e) { $('#u-not').textContent = ' ' + e.message; }
+});
+
 function panel_ac() {
   $('#giris').classList.add('gizli');
   $('#panel').classList.remove('gizli');
   $('#kim').textContent = 'yönetici';
+  serit_kontrol();
   domainleri_doldur();
   hesaplari_ciz();
   otp_ciz();

@@ -23,6 +23,10 @@ body { margin:0; font-family:"Segoe UI",sans-serif; background:var(--zemin); col
 .ustbar .sag { margin-left:auto; font-size:13px; }
 .ustbar a { color:#fff; }
 
+.serit { background:#FFF8E1; border-bottom:1px solid #FFE082; padding:10px 20px;
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:13.5px; }
+.serit input { padding:7px 10px; border:1px solid var(--kenar); border-radius:7px; font-size:13.5px; width:190px; }
+
 .icerik { display:flex; min-height:calc(100vh - 52px); }
 .yanmenu { width:190px; background:var(--kenar); padding:10px 0; flex-shrink:0; }
 .yanmenu div { padding:11px 18px; font-size:14px; cursor:pointer; }
