@@ -26,12 +26,26 @@ const denemeler = new Map(); // ip -> {sayi, ilk}
 function hiz_siniri(req, res, next) {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const simdi = Date.now(), d = denemeler.get(ip);
-  if (d && simdi - d.ilk < 15 * 60 * 1000 && d.sayi >= 8)
+  // Sinir 8 -> 20: captcha zaten robot filtresi; asil kimlik dogrulama SMS
+  // kodudur. Dar sinir, kod gelmedi diye tekrar deneyen GERCEK kullaniciyi
+  // 15 dakika disarida birakiyordu.
+  if (d && simdi - d.ilk < 15 * 60 * 1000 && d.sayi >= 20)
     return res.status(429).json({ hata: 'Çok fazla deneme — 15 dakika sonra tekrar deneyin' });
   if (!d || simdi - d.ilk >= 15 * 60 * 1000) denemeler.set(ip, { sayi: 1, ilk: simdi });
   else d.sayi++;
+  // Basarili yanitta sayaci geri al: dogru akisi tamamlayan kullanici
+  // kendi kotasini tuketmesin.
+  res.on('finish', () => {
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      const k = denemeler.get(ip);
+      if (k && k.sayi > 0) k.sayi--;
+    }
+  });
   next();
 }
+
+/** Bir IP'nin sayacini sifirlar (destek/kurtarma icin). */
+function hiz_sifirla(ip) { denemeler.delete(ip); }
 
 const eposta_gecerli = e => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(e || '');
 
