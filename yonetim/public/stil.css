@@ -66,3 +66,13 @@ td input.tablo-ici { padding:6px 8px; border:1px solid var(--kenar); border-radi
   padding:12px; border-radius:8px; font-size:15px; text-align:center; -webkit-user-select:all; user-select:all; }
 .baglanti-kart .btn { margin-top:14px; }
 .baglanti-kart + .baglanti-kart { margin-top:16px; }
+
+
+/* ---- Robot dogrulamasi (captcha) ---- */
+.cap-satir{ display:flex; gap:9px; align-items:stretch; margin:10px 0 4px; }
+.cap-resim{ flex:none; width:168px; height:52px; border-radius:9px; background:#f1f5f9; display:block; }
+.cap-sag{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:space-between; gap:5px; }
+.cap-sag input{ width:100%; letter-spacing:.16em; text-transform:uppercase; }
+.cap-sag input::placeholder{ letter-spacing:normal; text-transform:none; font-size:12.5px; }
+.baglanti{ align-self:flex-start; background:none; border:0; padding:0; color:#1E88E5;
+  font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; text-decoration:underline; }

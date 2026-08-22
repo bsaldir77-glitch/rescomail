@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const db = require('./lib/db');
 const plesk = require('./lib/plesk');
 const { cerez_uret, oturum_gerekli, hiz_siniri } = require('./lib/oturum');
+const captcha = require('./lib/captcha');   // robot dogrulamasi (dis servis YOK)
 
 if (!process.env.OTURUM_SECRET || process.env.OTURUM_SECRET.length < 32)
   throw new Error('OTURUM_SECRET en az 32 karakter olmali');
@@ -80,8 +81,23 @@ async function sms_yolla(tur, eposta, telefon, mesaj, ozet) {
 }
 
 // Giris: SMS acizsa parolasiz tek-kod akisi (Bulent karari: "tek sifre"); degilse klasik parola
+// Robot dogrulamasi gorseli — giris ekrani ve webmail kapisi bunu cagirir
+app.get('/api/captcha', hiz_siniri, async (req, res) => {
+  try {
+    const ip = req.headers['x-real-ip'] || req.socket.remoteAddress;
+    res.set('Cache-Control', 'no-store');
+    res.json(await captcha.uret(ip));
+  } catch (e) {
+    console.error('[captcha] uretilemedi:', e.message);
+    res.status(500).json({ hata: 'Dogrulama gorseli uretilemedi' });
+  }
+});
+
 app.post('/api/giris', hiz_siniri, async (req, res) => {
-  const { eposta, parola } = req.body || {};
+  const { eposta, parola, captcha: cap } = req.body || {};
+  // Robot dogrulamasi: SMS kotasini ve parola denemesini bot yakmasin
+  if (!await captcha.dogrula(cap && cap.id, cap && cap.cevap))
+    return res.status(400).json({ hata: 'captcha_gecersiz' });
   const e = String(eposta || '').toLowerCase();
   const { rows } = await db.pg.query(
     'SELECT parola_hash, telefon, sms_giris FROM yoneticiler WHERE eposta=$1 AND aktif', [e]);
@@ -433,6 +449,18 @@ app.use('/api/kapi', (req, res, next) => {
   next();
 });
 
+// Webmail kokeninden cagrilir (CORS bu yol altinda aciktir)
+app.get('/api/kapi/captcha', async (req, res) => {
+  try {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    res.set('Cache-Control', 'no-store');
+    res.json(await captcha.uret(ip));
+  } catch (e) {
+    console.error('[captcha] uretilemedi:', e.message);
+    res.status(500).json({ hata: 'Dogrulama gorseli uretilemedi' });
+  }
+});
+
 const kapi_denemeler = new Map();
 function kapi_hiz(req, res, next) {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -457,6 +485,9 @@ const kapi_kayit = (eposta, olay, ip) =>
 
 app.post('/api/kapi/kod', kapi_hiz, async (req, res) => {
   const netgsm = require('./lib/netgsm');
+  const cap = (req.body || {}).captcha || {};
+  if (!await captcha.dogrula(cap.id, cap.cevap))
+    return res.status(400).json({ hata: 'captcha_gecersiz' });
   const eposta = String((req.body || {}).eposta || '').trim().toLowerCase();
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   if (!eposta_gecerli(eposta)) return res.status(400).json({ hata: 'Geçerli bir e-posta adresi girin' });

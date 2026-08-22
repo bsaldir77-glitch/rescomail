@@ -15,6 +15,20 @@
     return e;
   }
 
+  // --- Robot dogrulamasi: gorsel sunucuda uretilir, cevap tek kullanimliktir ---
+  var capId = '', capResim = null, capKutu = null;
+  function captchaYenile() {
+    if (capKutu) capKutu.value = '';
+    fetch(API + '/api/kapi/captcha', { credentials: 'include' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j) { capId = ''; if (capResim) capResim.style.display = 'none'; return; }
+        capId = j.id || '';
+        if (capResim) { capResim.src = j.resim || ''; capResim.style.display = 'block'; }
+      })
+      .catch(function () { capId = ''; if (capResim) capResim.style.display = 'none'; });
+  }
+
   function api(yol, govde) {
     return fetch(API + yol, {
       method: 'POST', credentials: 'include',
@@ -72,15 +86,19 @@
       if (!adres) { durum.textContent = 'E-posta adresinizi girin'; return; }
       btn.disabled = true;
       if (asama === 'eposta') {
-        api('/api/kapi/kod', { eposta: adres }).then(function (s) {
+        api('/api/kapi/kod', { eposta: adres, captcha: { id: capId, cevap: (capKutu && capKutu.value || '').trim() } }).then(function (s) {
           asama = 'kod';
           kod.style.display = 'block';
+          capSatir.style.display = 'none';        // dogrulama gecildi, kutu gerekmiyor
           btn.textContent = 'Giriş Yap';
           durum.style.color = '#2E7D32';
           durum.textContent = s.maske ? 'Kod ' + s.maske + ' numarasına gönderildi' : 'Kod gönderildi';
           kod.focus();
-        }).catch(function (e) { durum.textContent = e.message; })
-          .then(function () { btn.disabled = false; });
+        }).catch(function (e) {
+          durum.textContent = e.message === 'captcha_gecersiz'
+            ? 'Doğrulama kodu hatalı — yeni kodu yazın' : e.message;
+          captchaYenile();                        // cevap tek kullanimlik, yenile
+        }).then(function () { btn.disabled = false; });
       } else {
         api('/api/kapi/dogrula', { eposta: adres, kod: (kod.value || '').trim() }).then(function (s) {
           // Farkli ust alan: cerezi sunucu yazamaz, burada yaziyoruz.
@@ -97,7 +115,22 @@
       g.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); btn.click(); } });
     });
 
-    [baslik, alt, eposta, kod, btn, durum].forEach(function (c) { kutu.appendChild(c); });
+    // Robot dogrulamasi: gorsel + kutu (kod adimina gecince gizlenir)
+    var capSatir = el('div', 'display:flex;gap:9px;align-items:stretch;margin:2px 0 6px');
+    capResim = el('img', 'flex:none;width:150px;height:46px;border-radius:8px;background:#f1f5f9;display:none');
+    capResim.alt = 'Doğrulama kodu';
+    var capSag = el('div', 'flex:1;min-width:0;display:flex;flex-direction:column;gap:4px');
+    capKutu = el('input', 'width:100%;padding:9px 11px;border:1.5px solid ' + KENAR +
+      ';border-radius:8px;font-size:14px;letter-spacing:.14em;text-transform:uppercase',
+      { placeholder: 'Gördüğünüz kod', autocomplete: 'off', spellcheck: false, maxLength: 6 });
+    var capYenile = el('button', 'align-self:flex-start;background:none;border:0;padding:0;color:' + MAVI +
+      ';font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline', { textContent: 'Yenile', type: 'button' });
+    capYenile.addEventListener('click', function (e) { e.preventDefault(); captchaYenile(); });
+    capSag.appendChild(capKutu); capSag.appendChild(capYenile);
+    capSatir.appendChild(capResim); capSatir.appendChild(capSag);
+
+    [baslik, alt, eposta, capSatir, kod, btn, durum].forEach(function (c) { kutu.appendChild(c); });
+    captchaYenile();
 
     // Bulent karari (2026-08-09): webmail girisi YALNIZ SMS ile. Klasik giris (kullanici adi +
     // parola + dil secici) sayfadan tamamen kaldirilir; hesabi acmak yoneticinin elindedir.

@@ -16,6 +16,13 @@
     <input id="g-eposta" type="text" placeholder="Yönetici e-posta" autocomplete="username">
     <input id="g-parola" class="gizli" type="password" placeholder="Parola" autocomplete="current-password">
     <input id="g-kod" class="gizli" placeholder="Telefona gelen 6 haneli kod" inputmode="numeric" autocomplete="one-time-code">
+    <div id="g-captcha" class="cap-satir">
+      <img id="g-cap-resim" class="cap-resim" alt="Doğrulama kodu">
+      <div class="cap-sag">
+        <input id="g-cap" placeholder="Gördüğünüz kodu yazın" autocomplete="off" spellcheck="false" maxlength="6">
+        <button id="g-cap-yenile" class="baglanti" type="button">Yenile</button>
+      </div>
+    </div>
     <button id="g-btn" class="btn tam" type="button">Devam</button>
     <p id="g-hata" class="hata"></p>
   </div>

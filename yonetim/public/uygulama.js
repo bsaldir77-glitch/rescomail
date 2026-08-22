@@ -13,8 +13,30 @@ async function api(yol, govde) {
   return j;
 }
 
+// --- robot dogrulamasi (captcha) ---
+// Gorsel sunucuda uretilir; cevap TEK KULLANIMLIK oldugu icin her denemeden
+// sonra yenilenir. Alinamazsa alan gizlenir (giris kilitlenmesin).
+let cap_id = '';
+async function captcha_yenile() {
+  const kutu = $('#g-cap'); if (kutu) kutu.value = '';
+  try {
+    const c = await api('/api/captcha');
+    cap_id = c.id || '';
+    $('#g-cap-resim').src = c.resim || '';
+    $('#g-captcha').classList.remove('gizli');
+  } catch {
+    cap_id = '';
+    $('#g-captcha').classList.add('gizli');
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const b = $('#g-cap-yenile'); if (b) b.addEventListener('click', captcha_yenile);
+});
+const captcha_govde = () => ({ id: cap_id, cevap: ($('#g-cap') && $('#g-cap').value || '').trim() });
+
 // --- giris / kurulum ---
 async function baslat() {
+  captcha_yenile();
   try {
     hesaplar = await api('/api/hesaplar'); // oturum varsa direkt panel
     panel_ac();
@@ -39,7 +61,7 @@ $('#g-btn').addEventListener('click', async () => {
   try {
     if (btn.textContent === 'Yönetici Oluştur') {
       await api('/api/kurulum', { eposta, parola: $('#g-parola').value });
-      await api('/api/giris', { eposta, parola: $('#g-parola').value });
+      await api('/api/giris', { eposta, parola: $('#g-parola').value, captcha: captcha_govde() });
       return location.reload();
     }
     if (giris_modu === 'otp') {
@@ -47,12 +69,12 @@ $('#g-btn').addEventListener('click', async () => {
       return location.reload();
     }
     if (giris_modu === 'parola') {
-      await api('/api/giris', { eposta, parola: $('#g-parola').value });
+      await api('/api/giris', { eposta, parola: $('#g-parola').value, captcha: captcha_govde() });
       return location.reload();
     }
     if (!eposta) { $('#g-hata').textContent = 'E-posta adresini gir'; return; }
     btn.disabled = true;
-    const s = await api('/api/giris', { eposta });      // parola gondermeden sor
+    const s = await api('/api/giris', { eposta, captcha: captcha_govde() });   // parola gondermeden sor
     if (s.otp_gerekli) {
       giris_modu = 'otp';
       $('#g-kod').classList.remove('gizli');
