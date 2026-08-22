@@ -33,15 +33,34 @@ function oturum_gerekli(req, res, next) {
   next();
 }
 
+const SINIR = 12;                 // 15 dk penceresinde IP basina istek
+const PENCERE = 15 * 60 * 1000;
+
 function hiz_siniri(req, res, next) {
   const ip = req.headers['x-real-ip'] || req.socket.remoteAddress;
   const simdi = Date.now();
   const d = denemeler.get(ip);
-  if (d && simdi - d.ilk < 15 * 60 * 1000 && d.sayi >= 5)
+
+  if (d && simdi - d.ilk < PENCERE && d.sayi >= SINIR)
     return res.status(429).json({ hata: 'Cok fazla deneme — 15 dk sonra tekrar' });
-  if (!d || simdi - d.ilk >= 15 * 60 * 1000) denemeler.set(ip, { sayi: 1, ilk: simdi });
+
+  if (!d || simdi - d.ilk >= PENCERE) denemeler.set(ip, { sayi: 1, ilk: simdi });
   else d.sayi++;
+
+  // BASARILI istek kotayi YAKMASIN: kod gonderildi / giris oldu gibi 2xx yanitlarda
+  // sayaci geri al. Kota yalnizca gercek basarisiz denemeleri saysin — yoksa SMS
+  // gecikince iki kez deneyen kullanici kendi kendini kilitliyor.
+  res.on('finish', () => {
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      const k = denemeler.get(ip);
+      if (k && k.sayi > 0) k.sayi--;
+    }
+  });
+
   next();
 }
 
-module.exports = { cerez_uret, oturum_gerekli, hiz_siniri };
+// Yonetici destegi icin: bir IP'nin kotasini elle sifirlar (kilit kalirsa)
+function hiz_sifirla(ip) { if (ip) denemeler.delete(ip); else denemeler.clear(); }
+
+module.exports = { cerez_uret, oturum_gerekli, hiz_siniri, hiz_sifirla };

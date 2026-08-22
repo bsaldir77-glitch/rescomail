@@ -437,10 +437,19 @@ const kapi_denemeler = new Map();
 function kapi_hiz(req, res, next) {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const simdi = Date.now(), d = kapi_denemeler.get(ip);
-  if (d && simdi - d.ilk < 15 * 60 * 1000 && d.sayi >= 8)
+  if (d && simdi - d.ilk < 15 * 60 * 1000 && d.sayi >= 12)
     return res.status(429).json({ hata: 'Çok fazla deneme — 15 dakika sonra tekrar deneyin' });
   if (!d || simdi - d.ilk >= 15 * 60 * 1000) kapi_denemeler.set(ip, { sayi: 1, ilk: simdi });
   else d.sayi++;
+
+  // Basarili istek (kod gonderildi / giris oldu) kotayi YAKMASIN — hesabi tanimsiz
+  // olan kullanici birkac denemede kendini kilitliyordu.
+  res.on('finish', () => {
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      const k = kapi_denemeler.get(ip);
+      if (k && k.sayi > 0) k.sayi--;
+    }
+  });
   next();
 }
 const kapi_kayit = (eposta, olay, ip) =>
