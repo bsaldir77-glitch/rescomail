@@ -454,9 +454,20 @@ function kapi_cerez_alani(koken) {
 }
 const KOPRU_YOL = process.env.KOPRU_YOL || '/opt/rescomail/deploy/parola-koprusu.sh';
 
+// Koken izinli mi? SABIT LISTE YETMIYOR: her marka kendi alan adinda webmail
+// aciyor (webmail.expresscoffee.com.tr, webmail.rescocorporate.com ...) ve
+// listede olmayan her marka SESSIZCE CORS'a takiliyor — ekran aciliyor ama
+// captcha resmi hic gelmiyordu. Kural: "webmail." ile baslayan her koken
+// kabul edilir; listedekiler ayrica gecerli.
+function kokenIzinli(kaynak) {
+  if (!kaynak) return false;
+  if (KAPI_KAYNAKLAR.includes(kaynak)) return true;
+  return /^https?:\/\/webmail\.[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(kaynak);
+}
+
 app.use('/api/kapi', (req, res, next) => {
   const kaynak = req.headers.origin;
-  if (kaynak && KAPI_KAYNAKLAR.includes(kaynak)) {
+  if (kokenIzinli(kaynak)) {
     res.setHeader('Access-Control-Allow-Origin', kaynak);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
