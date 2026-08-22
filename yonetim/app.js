@@ -585,7 +585,13 @@ app.post('/api/kapi/dogrula', kapi_hiz, async (req, res) => {
   // HttpOnly degildir (olculdu), bu yuzden guvenlik seviyesi degismez.
   const kapiAlani = kapi_cerez_alani('https://' + (req.headers.host || ''));
   const ayniUstAlan = kapiAlani && alan && kapiAlani === alan;
-  const yanit = { tamam: true, hedef: kopru.hedef };
+  // HEDEF, kullanicinin GELDIGI adres olmali. Kopru sabit bir hedef uretiyor
+  // (SOGO env = webmail.rescopos.com): expresscoffee'den giren kullanici
+  // rescopos'a atiliyor, cerez ise kendi alanina yazildigi icin orada oturum
+  // BULUNMUYOR ve SOGo kendi giris ekranini gosteriyordu.
+  let hedef = kopru.hedef;
+  if (koken) { try { hedef = new URL(koken).origin + '/SOGo/'; } catch (_) { /* koken bozuksa koprununki kalsin */ } }
+  const yanit = { tamam: true, hedef };
   if (!ayniUstAlan) yanit.cerezler = kopru.cerezler.map(c => c.split(';')[0].trim());
 
   await kapi_kayit(eposta, 'giris', ip);
