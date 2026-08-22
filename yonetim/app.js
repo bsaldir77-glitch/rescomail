@@ -404,7 +404,21 @@ app.get('/bilgi/:token', async (req, res) => {
 // Giris ekrani SOGo sayfasina JS ile eklenir (theme/kapi-giris.js); dogrulama burada yapilir.
 // Ayni ust alan (rescopos.com) oldugu icin oturum cerezi .rescopos.com'a yazilabilir.
 const { execFile } = require('child_process');
-const KAPI_KAYNAKLAR = (process.env.KAPI_KAYNAK || 'https://webmail.rescopos.com').split(',');
+// Izinli kokenler: webmail alan adlarimiz. Yeni bir webmail alan adi eklenince
+// KAPI_KAYNAK ortam degiskenine yazilir (virgulle ayrilir), kod degismez.
+const KAPI_KAYNAKLAR = (process.env.KAPI_KAYNAK ||
+  'https://webmail.rescopos.com,https://webmail.rescotelecom.com,https://webmail.rescotelekom.com'
+).split(',').map(s => s.trim()).filter(Boolean);
+
+// Cerez hangi ust alana yazilabilir: istegin GELDIGI kokenin ust alani.
+// (Bir sunucu baska bir ust alana cerez YAZAMAZ; webmail.rescotelecom.com icin
+//  .rescopos.com cerezi gecersizdir — bu yuzden koken basina hesaplanir.)
+function kapi_cerez_alani(koken) {
+  try {
+    const h = new URL(koken).hostname.split('.');
+    return h.length >= 2 ? '.' + h.slice(-2).join('.') : null;
+  } catch (_) { return null; }
+}
 const KOPRU_YOL = process.env.KOPRU_YOL || '/opt/rescomail/deploy/parola-koprusu.sh';
 
 app.use('/api/kapi', (req, res, next) => {
@@ -489,11 +503,25 @@ app.post('/api/kapi/dogrula', kapi_hiz, async (req, res) => {
     await kapi_kayit(eposta, 'kopru_hata:' + (kopru.hata || 'bos'), ip);
     return res.status(502).json({ hata: 'Posta kutusu açılamadı — yöneticinize başvurun' });
   }
-  const alan = process.env.KAPI_CEREZ_ALAN || '.rescopos.com';
-  res.setHeader('Set-Cookie', kopru.cerezler.map(c =>
-    `${c.split(';')[0].trim()}; Domain=${alan}; Path=/; Secure; SameSite=Lax${/httponly/i.test(c) ? '; HttpOnly' : ''}`));
+  // Cerez alani: istegin geldigi kokenin ust alani (yoksa eski varsayilan)
+  const koken = req.headers.origin || '';
+  const alan = kapi_cerez_alani(koken) || process.env.KAPI_CEREZ_ALAN || '.rescopos.com';
+  const cerezler = kopru.cerezler.map(c =>
+    `${c.split(';')[0].trim()}; Domain=${alan}; Path=/; Secure; SameSite=Lax${/httponly/i.test(c) ? '; HttpOnly' : ''}`);
+  res.setHeader('Set-Cookie', cerezler);
+
+  // Kapi bu servisin alaninda (rescopos.com) calisiyor; koken BASKA bir ust alansa
+  // (ornegin webmail.rescotelecom.com) taraycii bu Set-Cookie'yi kabul ETMEZ.
+  // O durumda cerezin ad=deger ciftini yanitta doneriz; webmail sayfasinda calisan
+  // tema betigi onu KENDI alaninda yazar. SOGo'nun kendi oturum cerezi zaten
+  // HttpOnly degildir (olculdu), bu yuzden guvenlik seviyesi degismez.
+  const kapiAlani = kapi_cerez_alani('https://' + (req.headers.host || ''));
+  const ayniUstAlan = kapiAlani && alan && kapiAlani === alan;
+  const yanit = { tamam: true, hedef: kopru.hedef };
+  if (!ayniUstAlan) yanit.cerezler = kopru.cerezler.map(c => c.split(';')[0].trim());
+
   await kapi_kayit(eposta, 'giris', ip);
-  res.json({ tamam: true, hedef: kopru.hedef });
+  res.json(yanit);
 });
 
 // --- SMS kayitlari: gonderildi mi, NetGSM ne dedi, ulasti mi ---

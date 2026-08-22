@@ -1,6 +1,8 @@
 /* Resco Mail — SOGo giris sayfasina SMS ile giris (Kapi) eklentisi.
    Tema dosyasinin sonuna eklenerek dagitilir (apply.sh birlestirir) → SOGo restart'i GEREKMEZ.
-   Dogrulama ucu: yonetim paneli (ayni ust alan: rescopos.com) → cerez .rescopos.com'a yazilir. */
+   Dogrulama ucu: yonetim paneli. Ayni ust alandaysa cerezi sunucu yazar; farkli
+   ust alandaysa (webmail.rescotelecom.com) sunucu cerezi yanitta doner, burada
+   KENDI alanimizda yazariz — bir sunucu baska ust alana cerez yazamaz. */
 (function () {
   'use strict';
   var API = 'https://mailprovider.rescopos.com';
@@ -80,10 +82,14 @@
         }).catch(function (e) { durum.textContent = e.message; })
           .then(function () { btn.disabled = false; });
       } else {
-        api('/api/kapi/dogrula', { eposta: adres, kod: (kod.value || '').trim() }).then(function () {
+        api('/api/kapi/dogrula', { eposta: adres, kod: (kod.value || '').trim() }).then(function (s) {
+          // Farkli ust alan: cerezi sunucu yazamaz, burada yaziyoruz.
+          (s && s.cerezler || []).forEach(function (c) {
+            document.cookie = c + '; Path=/; Secure; SameSite=Lax';
+          });
           durum.style.color = '#2E7D32';
           durum.textContent = 'Giriş yapılıyor...';
-          location.href = '/SOGo/';
+          location.href = (s && s.hedef) || '/SOGo/';
         }).catch(function (e) { durum.textContent = e.message; btn.disabled = false; });
       }
     });
