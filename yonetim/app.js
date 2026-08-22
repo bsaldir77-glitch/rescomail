@@ -24,7 +24,17 @@ const app = express();
 });
 
 app.use(express.json());
-app.use(express.static(__dirname + '/public'));
+// Statik dosyalar SABIT ISIMLI (uygulama.js, stil.css) — tarayici eski surumu
+// tutunca ekran "arizali" gorunuyor (captcha resmi bos kaliyordu). no-cache:
+// her acilista sunucuya SOR; dosya degismemisse 304 doner, maliyeti yok.
+app.use(express.static(__dirname + '/public', {
+  etag: true,
+  setHeaders: (res, yol) => {
+    if (/\.(js|css|html)$/i.test(yol)) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  }
+}));
 
 const parola_uret = () => crypto.randomBytes(9).toString('base64url') + '!A1';
 // Tek normalizasyon noktasi (TR cep + yurtdisi ulke kodlu numaralar)
@@ -422,8 +432,15 @@ app.get('/bilgi/:token', async (req, res) => {
 const { execFile } = require('child_process');
 // Izinli kokenler: webmail alan adlarimiz. Yeni bir webmail alan adi eklenince
 // KAPI_KAYNAK ortam degiskenine yazilir (virgulle ayrilir), kod degismez.
+// Kapi ekraninin yayinlandigi TUM webmail adresleri. Listede olmayan bir
+// koken CORS'a takilir: ekran acilir ama captcha/kod istekleri sessizce
+// engellenir (rescocorporate'ta tam bu yasandi — captcha resmi bos geldi).
+// http:// karsiliklari da var, cunku bazi alan adlarinda sertifika henuz
+// webmail. adini kapsamiyor ve tarayici siteyi http uzerinden aciyor.
 const KAPI_KAYNAKLAR = (process.env.KAPI_KAYNAK ||
-  'https://webmail.rescopos.com,https://webmail.rescotelecom.com,https://webmail.rescotelekom.com'
+  'https://webmail.rescopos.com,https://webmail.rescotelecom.com,' +
+  'https://webmail.rescotelekom.com,https://webmail.rescocorporate.com,' +
+  'http://webmail.rescocorporate.com'
 ).split(',').map(s => s.trim()).filter(Boolean);
 
 // Cerez hangi ust alana yazilabilir: istegin GELDIGI kokenin ust alani.
